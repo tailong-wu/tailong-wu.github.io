@@ -3,46 +3,262 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My GitHub Page</title>
+    <title>Tailong Wu - Robotics Researcher</title>
+    <meta name="description" content="Personal website and portfolio of Tailong Wu - Robotics researcher focused on Vision-Language-Action (VLA) and Agents. Mathematical modeling competition award winner.">
+    <meta name="keywords" content="Tailong Wu, Robotics, VLA, Vision-Language-Action, Agents, AI Researcher, Mathematical Modeling, Portfolio, GitHub">
+    <meta name="author" content="Tailong Wu">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Oleo+Script:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-    <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            height: 100vh; /* Changed from min-height to height for full centering */
-            margin: 0;
-        }
-        main {
-            width: 100%;
-            max-width: 800px; /* Optional: limit the width of the main content */
-        }
-    </style>
 </head>
 <body>
-    <header>
-        <h1>Welcome to My GitHub Page</h1>
-    </header>
-    <main>
-        <section id="about">
-            <h2>About Me</h2>
-            <p>My name is TailongWu, and I am from China.</p>
-            <!-- <img src="path/to/your/photo.jpg" alt="Photo of TailongWu" /> -->
-            <p>Check out my GitHub profile: <a href="https://github.com/tailong-wu">tailong-wu</a></p>
-        </section>
-        <section id="projects">
-            <h2>My Projects</h2>
-            <p>Here are some of the projects I've worked on.</p>
-        </section>
-        <section id="contact">
-            <h2>Contact Me</h2>
-            <p>You can reach me at tailongwu@qq.com.</p>
-        </section>
-    </main>
-    <footer>
-        <p>&copy; 2024 My GitHub Page</p>
-    </footer>
+    <div class="container">
+        <!-- Tab Navigation -->
+        <nav class="tab-nav">
+            <div class="tab-list" role="tablist">
+                <button class="tab active" role="tab" data-tab="all" aria-selected="true">All</button>
+                <button class="tab" role="tab" data-tab="about" aria-selected="false">About</button>
+                <button class="tab" role="tab" data-tab="projects" aria-selected="false">Projects</button>
+                <button class="tab" role="tab" data-tab="contact" aria-selected="false">Contact</button>
+            </div>
+        </nav>
+
+        <!-- Bento Grid Layout -->
+        <main class="bento-grid" id="bentoGrid">
+            <!-- Avatar Card - Main Intro -->
+            <article class="bento-card bento-card-large" data-category="about">
+                <div class="avatar-section">
+                    <div class="avatar-container">
+                        <div class="avatar-ring"></div>
+                        <div class="avatar-image">
+                            <span class="avatar-initials">TW</span>
+                        </div>
+                    </div>
+                    <div class="status-badge">
+                        <span class="status-dot"></span>
+                        <span>Available for work</span>
+                    </div>
+                </div>
+                <div class="intro-text">
+                    <p class="greeting">
+                        Hey! I'm <span class="name-highlight">Tailong Wu</span>, I work on robotics, and I'm currently focused on research in Vision-Language-Action (VLA) and Agents. I also have experience in mathematical modeling competitions, with several awards to my name.
+                    </p>
+                </div>
+                <div class="dock">
+                    <a href="https://github.com/tailong-wu" target="_blank" rel="noopener noreferrer" class="dock-item" title="GitHub">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                    </a>
+                    <a href="mailto:tailongwu@hdu.edu.cn" class="dock-item" title="Email">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    </a>
+                    <button class="dock-item theme-toggle-btn" id="themeToggle" title="Toggle Theme">
+                        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                    </button>
+                </div>
+            </article>
+
+            <!-- Tech Stack Card -->
+            <article class="bento-card" data-category="about">
+                <div class="card-header">
+                    <span class="card-icon">⚡</span>
+                    <h3>Tech Stack</h3>
+                </div>
+                <div class="tech-grid">
+                    <div class="tech-item" data-tech="html">
+                        <div class="tech-icon html">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1.5 0h21l-1.91 21.563L11.977 24l-8.564-2.438L1.5 0zm7.031 9.75l-.232-2.718 10.059.003.23-2.622L5.412 4.41l.698 8.01h9.126l-.326 3.426-2.91.804-2.955-.81-.188-2.11H6.608l.33 4.171L12 19.351l5.039-1.377.671-7.224H8.531z"/></svg>
+                        </div>
+                        <span>HTML</span>
+                    </div>
+                    <div class="tech-item" data-tech="css">
+                        <div class="tech-icon css">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1.5 0h21l-1.91 21.563L11.977 24l-8.565-2.438L1.5 0zm17.09 4.413L5.41 4.41l.213 2.622 10.125.002-.255 2.716h-6.64l.24 2.573h6.182l-.366 3.523-2.91.804-2.956-.81-.188-2.11h-2.61l.29 3.855L12 19.288l5.373-1.53L18.59 4.413z"/></svg>
+                        </div>
+                        <span>CSS</span>
+                    </div>
+                    <div class="tech-item" data-tech="js">
+                        <div class="tech-icon js">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M0 0h24v24H0V0zm22.034 18.276c-.175-1.095-.888-2.015-3.003-2.873-.736-.345-1.554-.585-1.797-1.14-.091-.33-.105-.51-.046-.705.15-.646.915-.84 1.515-.66.39.12.75.42.976.9 1.034-.676 1.034-.676 1.755-1.125-.27-.42-.404-.601-.586-.78-.63-.705-1.469-1.065-2.834-1.034l-.705.089c-.676.165-1.32.525-1.71 1.005-1.14 1.291-.811 3.541.569 4.471 1.365 1.02 3.361 1.244 3.616 2.205.24 1.17-.87 1.545-1.966 1.41-.811-.18-1.26-.586-1.755-1.336l-1.83 1.051c.21.48.45.689.81 1.109 1.74 1.756 6.09 1.666 6.871-1.004.029-.09.24-.705.074-1.65l.046.067zm-8.983-7.245h-2.248c0 1.938-.009 3.864-.009 5.805 0 1.232.063 2.363-.138 2.711-.33.689-1.18.601-1.566.48-.396-.196-.597-.466-.83-.855-.063-.105-.11-.196-.127-.196l-1.825 1.125c.305.63.75 1.172 1.324 1.517.855.51 2.004.675 3.207.405.783-.226 1.458-.691 1.811-1.411.51-.93.402-2.07.397-3.346.012-2.054 0-4.109 0-6.179l.004-.056z"/></svg>
+                        </div>
+                        <span>JavaScript</span>
+                    </div>
+                    <div class="tech-item" data-tech="python">
+                        <div class="tech-icon python">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14.25.18l.9.2.73.26.59.3.45.32.34.34.25.34.16.33.1.3.04.26.02.2-.01.13V8.5l-.05.63-.13.55-.21.46-.26.38-.3.31-.33.25-.35.19-.35.14-.33.1-.3.07-.26.04-.21.02H8.77l-.69.05-.59.14-.5.22-.41.27-.33.32-.27.35-.2.36-.15.37-.1.35-.07.32-.04.27-.02.21v3.06H3.17l-.21-.03-.28-.07-.32-.12-.35-.18-.36-.26-.36-.36-.35-.46-.32-.59-.28-.73-.21-.88-.14-1.05-.05-1.23.06-1.22.12-1.07.2-.9.28-.73.33-.59.38-.45.41-.34.42-.24.41-.15.38-.07.32-.02.23v3.48l.05.63.13.55.21.46.26.38.3.31.33.25.35.19.35.14.33.1.3.07.26.04.21.02h7.15l.69-.05.59-.14.5-.22.41-.27.33-.32.27-.35.2-.36.15-.37.1-.35.07-.32.04-.27.02-.21V7.73l.05-.63.13-.55.21-.46.26-.38.3-.31.33-.25.35-.19.35-.14.33-.1.3-.07.26-.04.21-.02h.23l.21.02.26.04.3.07.33.1.35.14.35.19.33.25.3.31.26.38.21.46.13.55.05.63v7.15l-.05.63-.13.55-.21.46-.26.38-.3.31-.33.25-.35.19-.35.14-.33.1-.3.07-.26.04-.21.02-.13.01H8.83l-.69.05-.59.14-.5.22-.41.27-.33.32-.27.35-.2.36-.15.37-.1.35-.07.32-.04.27-.02.21v3.06l.02.2.04.26.07.3.1.33.14.35.19.35.25.33.31.3.38.26.46.21.55.13.63.05h3.15l.21-.02.26-.04.3-.07.33-.1.35-.14.35-.19.33-.25.3-.31.26-.38.21-.46.13-.55.05-.63V7.73l.05-.63.13-.55.21-.46.26-.38.3-.31.33-.25.35-.19.35-.14.33-.1.3-.07.26-.04.21-.02h.23l.21.02.26.04.3.07.33.1.35.14.35.19.33.25.3.31.26.38.21.46.13.55.05.63v7.15l-.05.63-.13.55-.21.46-.26.38-.3.31-.33.25-.35.19-.35.14-.33.1-.3.07-.26.04-.21.02-.13.01H8.83l-.69.05-.59.14-.5.22-.41.27-.33.32-.27.35-.2.36-.15.37-.1.35-.07.32-.04.27-.02.21v3.06l.02.2.04.26.07.3.1.33.14.35.19.35.25.33.31.3.38.26.46.21.55.13.63.05h3.15l.21-.02.26-.04.3-.07.33-.1.35-.14.35-.19.33-.25.3-.31.26-.38.21-.46.13-.55.05-.63V7.73l.05-.63.13-.55.21-.46.26-.38.3-.31.33-.25.35-.19.35-.14.33-.1.3-.07.26-.04.21-.02h.23l.21.02.26.04.3.07.33.1.35.14.35.19.33.25.3.31.26.38.21.46.13.55.05.63v7.15l-.05.63-.13.55-.21.46-.26.38-.3.31-.33.25-.35.19-.35.14-.33.1-.3.07-.26.04-.21.02-.13.01H8.83l-.69.05-.59.14-.5.22-.41.27-.33.32-.27.35-.2.36-.15.37-.1.35-.07.32-.04.27-.02.21v3.06l.02.2.04.26.07.3.1.33.14.35.19.35.25.33.31.3.38.26.46.21.55.13.63.05h3.15l.21-.02.26-.04.3-.07.33-.1.35-.14.35-.19.33-.25.3-.31.26-.38.21-.46.13-.55.05-.63V7.73l-.01-.01z"/></svg>
+                        </div>
+                        <span>Python</span>
+                    </div>
+                    <div class="tech-item" data-tech="git">
+                        <div class="tech-icon git">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.546 10.93L13.067.452c-.604-.603-1.582-.603-2.188 0L8.708 2.627l2.76 2.76c.645-.215 1.387-.07 1.9.455.516.516.66 1.26.445 1.9l2.66 2.66c.645-.215 1.387-.07 1.9.455.72.72.72 1.884 0 2.604-.717.72-1.884.72-2.604 0-.545-.545-.676-1.34-.396-2.008L12.86 8.956v6.525c.176.086.342.2.49.345.72.72.72 1.884 0 2.604-.72.72-1.884.72-2.604 0-.72-.72-.72-1.884 0-2.604.18-.18.382-.316.6-.406V8.83c-.218-.09-.42-.222-.6-.406-.545-.546-.677-1.343-.356-2.01L7.835 3.66.45 11.04c-.603.605-.603 1.583 0 2.188l10.48 10.477c.604.604 1.582.604 2.188 0l10.45-10.45c.604-.604.604-1.582 0-2.186"/></svg>
+                        </div>
+                        <span>Git</span>
+                    </div>
+                    <div class="tech-item" data-tech="react">
+                        <div class="tech-icon react">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 9.861a2.139 2.139 0 100 4.278 2.139 2.139 0 100-4.278zm-5.992 6.394l-.472-.12C2.018 15.246 0 13.737 0 11.996s2.018-3.25 5.536-4.139l.472-.119.133.468a23.53 23.53 0 001.363 3.578l.101.213-.101.213a23.307 23.307 0 00-1.363 3.578l-.133.467zM5.317 8.95c-2.674.751-4.315 1.9-4.315 3.046 0 1.145 1.641 2.294 4.315 3.046a24.95 24.95 0 011.182-3.046A24.752 24.752 0 015.317 8.95zm12.675 7.305l-.133-.469a23.357 23.357 0 00-1.364-3.577l-.101-.213.101-.213a23.42 23.42 0 001.364-3.578l.133-.468.473.119c3.517.889 5.535 2.398 5.535 4.14s-2.018 3.25-5.535 4.139l-.473.12zm-.491-4.259c.48 1.039.877 2.06 1.182 3.046 2.675-.752 4.315-1.901 4.315-3.046 0-1.146-1.641-2.294-4.315-3.046a24.788 24.788 0 01-1.182 3.046zM5.31 8.945l-.133-.467C4.188 4.992 4.488 2.494 6 1.622c1.483-.856 3.864.155 6.359 2.716l.34.349-.34.349a23.552 23.552 0 00-2.422 2.967l-.135.193-.235.02a23.657 23.657 0 00-3.785.61l-.472.119zm1.896-6.63c-.268 0-.505.058-.705.173-.994.573-1.17 2.565-.485 5.253a25.122 25.122 0 013.233-.501 24.847 24.847 0 012.052-2.544c-1.56-1.519-3.037-2.381-4.095-2.381zm9.589 20.063c-.001 0-.001 0 0 0-1.425 0-3.255-1.073-5.154-3.023l-.34-.349.34-.349a23.53 23.53 0 002.421-2.968l.135-.193.234-.02a23.63 23.63 0 003.787-.609l.472-.119.134.468c.987 3.484.688 5.983-.824 6.854a2.38 2.38 0 01-1.205.308zm-4.096-3.381c1.56 1.519 3.037 2.381 4.095 2.381h.001c.267 0 .505-.058.704-.173.994-.573 1.171-2.566.485-5.254a25.02 25.02 0 01-3.234.501 24.674 24.674 0 01-2.051 2.545zM18.69 8.945l-.472-.119a23.479 23.479 0 00-3.787-.61l-.234-.02-.135-.193a23.414 23.414 0 00-2.421-2.967l-.34-.349.34-.349C14.135 1.778 16.515.767 18 1.622c1.512.872 1.812 3.37.824 6.855l-.134.468zM14.75 7.24c1.142.104 2.227.273 3.234.501.686-2.688.509-4.68-.485-5.253-.988-.571-2.845.304-4.8 2.208A24.849 24.849 0 0114.75 7.24zM7.206 22.677A2.38 2.38 0 016 22.369c-1.512-.872-1.812-3.369-.823-6.854l.132-.468.472.119c1.155.291 2.429.496 3.785.609l.235.02.134.193a23.596 23.596 0 002.422 2.968l.34.349-.34.349c-1.898 1.95-3.728 3.023-5.151 3.023zm-1.19-6.427c-.686 2.688-.509 4.681.485 5.254.987.563 2.843-.305 4.8-2.208a24.998 24.998 0 01-2.052-2.545 24.976 24.976 0 01-3.233-.501zm5.984.628c-.823 0-1.669-.036-2.516-.106l-.235-.02-.135-.193a30.388 30.388 0 01-1.35-2.122 30.354 30.354 0 01-1.166-2.228l-.1-.213.1-.213a30.3 30.3 0 011.166-2.228c.414-.716.869-1.43 1.35-2.122l.135-.193.235-.02a29.785 29.785 0 015.033 0l.234.02.134.193a30.006 30.006 0 012.517 4.35l.101.213-.101.213a29.6 29.6 0 01-2.517 4.35l-.134.193-.234.02c-.847.07-1.694.106-2.517.106zm-2.197-1.084c1.48.111 2.914.111 4.395 0a29.006 29.006 0 002.195-3.798 28.555 28.555 0 00-2.197-3.798 29.037 29.037 0 00-4.393 0 28.477 28.477 0 00-2.197 3.798 29.114 29.114 0 002.197 3.798z"/></svg>
+                        </div>
+                        <span>React</span>
+                    </div>
+                </div>
+            </article>
+
+            <!-- Location Card -->
+            <article class="bento-card" data-category="about">
+                <div class="location-content">
+                    <div class="location-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    </div>
+                    <div class="location-info">
+                        <span class="location-label">Based in</span>
+                        <span class="location-value">China</span>
+                    </div>
+                </div>
+            </article>
+
+            <!-- GitHub Stats Card -->
+            <article class="bento-card" data-category="about">
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-value" data-count="10">0</span>
+                        <span class="stat-label">Repositories</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" data-count="500">0</span>
+                        <span class="stat-label">Commits</span>
+                    </div>
+                </div>
+                <a href="https://github.com/tailong-wu" target="_blank" rel="noopener noreferrer" class="github-link">
+                    <span>View GitHub Profile</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                </a>
+            </article>
+
+            <!-- Project Cards -->
+            <article class="bento-card bento-card-wide" data-category="projects">
+                <div class="project-header">
+                    <div class="project-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                    </div>
+                    <div class="project-info">
+                        <h3>Personal Portfolio</h3>
+                        <p>This website you're looking at!</p>
+                    </div>
+                </div>
+                <div class="project-tags">
+                    <span class="tag">HTML</span>
+                    <span class="tag">CSS</span>
+                    <span class="tag">JavaScript</span>
+                </div>
+                <a href="https://github.com/tailong-wu/tailong-wu.github.io" target="_blank" rel="noopener noreferrer" class="project-link">
+                    View Source
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                </a>
+            </article>
+
+            <article class="bento-card" data-category="projects">
+                <div class="project-header">
+                    <div class="project-icon secondary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                    </div>
+                    <div class="project-info">
+                        <h3>Web Applications</h3>
+                        <p>Various web projects</p>
+                    </div>
+                </div>
+                <div class="project-tags">
+                    <span class="tag">Python</span>
+                    <span class="tag">JavaScript</span>
+                </div>
+                <a href="https://github.com/tailong-wu?tab=repositories" target="_blank" rel="noopener noreferrer" class="project-link">
+                    Explore
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                </a>
+            </article>
+
+            <!-- Current Focus Card -->
+            <article class="bento-card gradient-card" data-category="about">
+                <div class="focus-content">
+                    <span class="focus-label">Currently focused on</span>
+                    <h3 class="focus-title">Vision-Language-Action (VLA) & Agents</h3>
+                    <p class="focus-desc">Researching at the intersection of robotics, vision-language models, and intelligent agent systems.</p>
+                </div>
+            </article>
+
+            <!-- Contact Card -->
+            <article class="bento-card bento-card-wide" data-category="contact">
+                <div class="card-header">
+                    <span class="card-icon">📬</span>
+                    <h3>Get in Touch</h3>
+                </div>
+                <p class="contact-text">Feel free to reach out for collaborations, opportunities, or just a friendly chat!</p>
+                <div class="contact-methods">
+                    <a href="mailto:tailongwu@hdu.edu.cn" class="contact-method">
+                        <div class="method-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                        </div>
+                        <span>tailongwu@hdu.edu.cn</span>
+                    </a>
+                    <a href="https://github.com/tailong-wu" target="_blank" rel="noopener noreferrer" class="contact-method">
+                        <div class="method-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                        </div>
+                        <span>@tailong-wu</span>
+                    </a>
+                </div>
+            </article>
+
+            <!-- Awards Card -->
+            <article class="bento-card bento-card-wide bento-card-tall" data-category="about">
+                <div class="card-header">
+                    <span class="card-icon">🏆</span>
+                    <h3>Awards & Achievements</h3>
+                </div>
+                <div class="awards-list">
+                    <div class="award-item">
+                        <span class="award-rank gold">🥇</span>
+                        <div class="award-info">
+                            <span class="award-title">First Prize</span>
+                            <span class="award-event">China Graduate Mathematical Modeling Contest - Garden Aesthetics Modeling</span>
+                            <span class="award-year">2025</span>
+                        </div>
+                    </div>
+                    <div class="award-item">
+                        <span class="award-rank gold">🥇</span>
+                        <div class="award-info">
+                            <span class="award-title">First Prize (Meritorious Winner)</span>
+                            <span class="award-event">MCM/ICM - Used Sailboat Price Prediction and Regional Impact Factors</span>
+                            <span class="award-year">2023</span>
+                        </div>
+                    </div>
+                    <div class="award-item">
+                        <span class="award-rank silver">🥈</span>
+                        <div class="award-info">
+                            <span class="award-title">Second Prize (Honorable Mention)</span>
+                            <span class="award-event">MCM/ICM - Stock & Gold/Bitcoin Investment Strategy Research</span>
+                            <span class="award-year">2022</span>
+                        </div>
+                    </div>
+                    <div class="award-item">
+                        <span class="award-rank gold">🥇</span>
+                        <div class="award-info">
+                            <span class="award-title">First Prize</span>
+                            <span class="award-event">China University Risk Control Challenge - Corporate Bankruptcy Risk Prediction</span>
+                            <span class="award-year">2021</span>
+                        </div>
+                    </div>
+                </div>
+            </article>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2024 Tailong Wu. Built with passion.</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
 </body>
 </html>
