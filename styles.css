@@ -384,7 +384,8 @@ body {
 
 .tech-icon.python { background: rgba(55, 118, 171, 0.15); color: var(--python-color); }
 .tech-icon.git { background: rgba(240, 80, 50, 0.15); color: var(--git-color); }
-.tech-icon.isaacsim { background: rgba(118, 185, 0, 0.15); color: var(--isaacsim-color); }
+.tech-icon.isaacsim { background: rgba(118, 185, 0, 0.15); color: var(--isaacsim-color); display: flex; align-items: center; justify-content: center; }
+.tech-icon.isaacsim img { width: 24px; height: 24px; }
 .tech-icon.pybullet { background: rgba(255, 107, 53, 0.15); color: var(--pybullet-color); }
 .tech-icon.csharp { background: rgba(81, 43, 212, 0.15); color: var(--csharp-color); }
 
