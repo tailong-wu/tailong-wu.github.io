@@ -492,6 +492,17 @@ body {
 /* =====================================================
    Hugging Face Card
    ===================================================== */
+.hf-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hf-icon svg {
+    width: 20px;
+    height: 20px;
+}
+
 .hf-stats {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
