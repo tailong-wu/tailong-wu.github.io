@@ -498,9 +498,9 @@ body {
     justify-content: center;
 }
 
-.hf-icon svg {
-    width: 20px;
-    height: 20px;
+.hf-icon img {
+    width: 24px;
+    height: 24px;
 }
 
 .hf-stats {
