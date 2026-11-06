@@ -2,59 +2,63 @@
 
 Personal portfolio: <https://tailong-wu.github.io/>
 
-## Swarm-style entrance
+## Scroll-driven Swarm construction
 
-A lightweight, dependency-free loading sequence designed for the existing bento layout:
+This is **not a timed splash screen**. Each section is constructed when scrolling reaches it:
 
-1. Eighteen colored cursors orbit the **TW** monogram.
-2. Cursors fan out to trace the actual visible cards, with temporary rulers, alignment guides, selection handles, and dimension badges.
-3. Cards fill in, then Agents switch to an I-beam tool and type the headings, labels, and rich-text introduction character by character, with a blinking caret and brief punctuation pauses.
-4. The original DOM remains in place to reserve exact line wrapping. Disposable typed copies are removed when finished, skipped, or interrupted; the original text, links, and event handlers are never replaced.
+1. Colored Agent cursors gather around the **TW** monogram.
+2. Agents draw the cards currently in view, showing rulers, guides, selection handles and dimensions.
+3. Cards fill in; Agents switch to I-beams and type headings, labels and rich text character by character.
+4. Unvisited sections stay pending, even after the first screen has finished. Scrolling brings more work into the construction frontier.
+5. Faster scrolling increases work tempo and worker count. Work above the viewport catches up quickly. Returning to an already completed card never rebuilds it.
+6. After every section, including the footer, has been built, the animation removes itself.
 
-The original content, tab filtering, language/theme toggles, counters, links, and responsive layout remain intact. The original [business script](script.js) and [site stylesheet](styles.css) are unchanged.
+Between sections, a small “Scroll to keep building” indicator remains. **Show all** reveals everything immediately.
+
+The original content, tab filtering, language/theme toggles, counters, links and responsive layout are preserved. The original [business script](script.js) and [site stylesheet](styles.css) remain unchanged. Original rich-text nodes reserve the exact layout; only disposable, accessibility-hidden copies are typed.
 
 ### Preview locally
 
-No install or build required. From this directory:
+No install or build required:
 
 ```sh
 python3 -m http.server 4174 --bind 127.0.0.1
 ```
 
-Open <http://127.0.0.1:4174/>. Refresh to replay the entrance.
+Open <http://127.0.0.1:4174/>. Refresh to replay, then scroll down to construct the rest of the page.
 
 ### Behavior and safety
 
-- About 4.2 seconds including character-by-character typing after DOM initialization; it never waits for the video iframe or third-party APIs. Chinese, emoji, and combining marks are typed as intact graphemes.
-- **Skip intro**, Escape, keyboard navigation, or scrolling releases the page immediately.
-- Honors the existing saved light/dark theme and English/Chinese language preference.
-- `prefers-reduced-motion` skips the entrance; a mid-animation preference change also releases it immediately.
-- Back/forward navigation does not replay it. No forced scroll reset or persistent focus trap.
-- An independent 6.5-second head watchdog makes the page visible if the loader script fails.
-- Missing loader CSS, runtime errors, a backgrounded page, or resize safely finish the intro.
-- Existing card animations continue behind the reveal masks; no startup animation overrides remain afterward.
+- Each card has its own work clock. There is no page-wide timer that reveals untouched sections.
+- A monotonic scroll frontier admits visited content; visible work takes priority. Completed cards become interactive individually.
+- Theme, language and category changes reconcile active work and geometry without revealing unvisited sections. Hidden categories are not incorrectly admitted as zero-height cards.
+- Resizing or late font reflow finishes only current work and remeasures the remaining sections.
+- Backgrounding pauses the engine. Returning does not consume the paused time as construction time.
+- Idle scenes stop their animation loop; scrolling and pointer movement wake them again.
+- Escape, **Show all**, or Tab accessibility navigation reveals the entire page. Space, Arrow Up/Down, Home/End and Page Up/Down remain construction-driving scroll controls.
+- Reduced motion, missing assets, initialization errors and runtime errors fail open. Back/forward navigation does not replay the effect.
+- A separate 6.5-second head watchdog protects startup only. Once the runtime takes over, it is cancelled: waiting below-fold content is not released by that timer.
+- No forced scroll reset, permanent container-wide inert state, cloned business links, or external animation dependency.
 
-### Files
+### Files and diagnostics
 
-- [Page entry and fail-open bootstrap](index.html)
-- [Cursor animation and cleanup](swarm-loader.js)
-- [Scoped entrance styling](swarm-loader.css)
+- [Page entry and startup watchdog](index.html)
+- [Scheduler, scroll frontier, Agent rendering and typing](swarm-loader.js)
+- [Scoped construction styling](swarm-loader.css)
 - [Local font CSS](fonts/fonts.css) and [font provenance](fonts/sources.json)
-- [Dependency-free regression tests](tests/swarm-loader.test.cjs)
+- [Regression tests](tests/swarm-loader.test.cjs)
 
-Inter 300/400/500/600/700 and Oleo Script 400/700 use the exact original Google Fonts files and Unicode ranges, now served locally. This avoids a blocking Google Fonts stylesheet delaying the intro. Font licenses: [Inter OFL](fonts/Inter-OFL.txt), [Oleo Script OFL](fonts/Oleo-Script-OFL.txt). The original Bilibili video embed still requires its external service.
+While construction is active, `window.portfolioSwarm.snapshot()` reports the frontier, tempo, pending/active/completed counts and per-section clocks. `window.portfolioSwarm.showAll()` is the same explicit opt-out as the on-screen button.
 
-### Run tests
+Inter 300–700 and Oleo Script 400/700 use the original Google Fonts files and Unicode ranges, hosted locally. Font licenses: [Inter OFL](fonts/Inter-OFL.txt), [Oleo Script OFL](fonts/Oleo-Script-OFL.txt). The original Bilibili video embed still requires its external service, but never gates construction.
 
-Node.js 20+:
+### Validation and deployment
 
 ```sh
 node --test tests/swarm-loader.test.cjs
 node --check swarm-loader.js
 ```
 
-Tests cover the independent watchdog, idempotent error cleanup, history/reduced-motion opt-out, theme precedence, unavailable storage, geometry, Unicode/grapheme typing and punctuation pacing, original source integrity, scoped CSS, and local font assets. Browser checks additionally cover desktop/mobile phases, both themes/languages, all tabs, keyboard controls, missing loader assets, script-disabled mode, scrolling, runtime failures, and restoring the original rich-text DOM and exact block dimensions after typing or interruption.
+Tests cover frontier eligibility/priority, scroll-dependent tempo/workers, startup takeover, error cleanup, theme/history/reduced-motion handling, Unicode typing, geometry, source integrity and local fonts. Browser checks additionally verify that below-fold content stays pending beyond the old splash deadline, real scrolling starts new work, returning does not rebuild completed cards, fast scrolling catches up, and mobile/control/skip paths remain usable.
 
-### Deployment
-
-This remains a plain static GitHub Pages site; no package manager or build step was introduced. Publish the changed HTML, the two loader files, and the local fonts together. Keep the font license files with the assets.
+This remains a static GitHub Pages site with no build step. Publish the HTML, loader files and local fonts together; retain the font licenses. The loader asset URLs carry a release query (`v=scroll-20261106`) so returning visitors do not reuse the old timed-intro scripts from the browser cache. Bump that query when shipping a new loader release.

@@ -35,6 +35,12 @@
                 document.querySelectorAll('.swarm-card-visible').forEach(el => el.classList.remove('swarm-card-visible'));
                 window.dispatchEvent(new Event('swarm:finished'));
             };
+            boot.takeOver = () => {
+                if (boot.done) return;
+                boot.active = true;
+                clearTimeout(boot.timeout);
+                boot.timeout = 0;
+            };
             window.__portfolioSwarm = boot;
             boot.timeout = setTimeout(() => boot.release('timeout'), 6500);
             root.classList.add('swarm-loading');
@@ -42,8 +48,8 @@
     </script>
     <link rel="stylesheet" href="fonts/fonts.css">
     <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="swarm-loader.css">
-    <script src="swarm-loader.js" defer></script>
+    <link rel="stylesheet" href="swarm-loader.css?v=scroll-20261106">
+    <script src="swarm-loader.js?v=scroll-20261106" defer></script>
 </head>
 <body>
     <div class="container">

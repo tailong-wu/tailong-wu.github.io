@@ -4,7 +4,7 @@ const { readFileSync } = require('node:fs');
 const { join } = require('node:path');
 const { createHash } = require('node:crypto');
 const vm = require('node:vm');
-const { clamp, ease, lerp, perimeterPoint, splitText, typingPlan, typingCount, COLORS, ORBIT_MS, BUILD_MS, OUTRO_MS } = require('../swarm-loader.js');
+const { clamp, ease, lerp, perimeterPoint, splitText, typingPlan, typingCount, inView, scrollTempo, workerCount, eligibleTargets, COLORS, ORBIT_MS, BUILD_MS, OUTRO_MS } = require('../swarm-loader.js');
 const root = join(__dirname, '..');
 const html = readFileSync(join(root, 'index.html'), 'utf8');
 const bootstrap = html.match(/<script id="swarm-bootstrap">([\s\S]*?)<\/script>/)[1];
@@ -54,6 +54,43 @@ test('head hook opts in and provides an independent bounded fail-open watchdog',
     assert.equal(restored, 1);
     assert.equal(fixture.removed(), 1);
     assert.deepEqual(fixture.events, ['swarm:finished']);
+});
+
+test('runtime takeover cancels only the startup timer and keeps unvisited content pending', () => {
+    const fixture = bootFixture();
+    const boot = fixture.sandbox.__portfolioSwarm;
+    boot.takeOver();
+    assert.equal(boot.active, true);
+    assert.equal(boot.done, false);
+    assert.equal(fixture.timers.size, 0);
+    assert.ok(fixture.classes.has('swarm-loading'));
+    boot.release('skipped');
+    assert.equal(fixture.classes.size, 0);
+});
+
+test('scroll frontier admits only visited, non-hidden targets and prioritizes the viewport', () => {
+    const item = (id, y, extra = {}) => ({ id, state: 'pending', box: { x: 0, y, width: 300, height: 200 }, ...extra });
+    const targets = [item('above', 0), item('visible', 600), item('future', 1600),
+        item('done', 650, { state: 'done' }), item('filtered', 650, { hidden: true })];
+    assert.deepEqual(eligibleTargets(targets, 900, 500, 900, 1).map(x => x.id), ['visible']);
+    assert.deepEqual(eligibleTargets(targets, 900, 500, 900, 8).map(x => x.id), ['visible', 'above']);
+    assert.deepEqual(eligibleTargets([targets[2]], 900, 500, 900), []);
+    assert.deepEqual(eligibleTargets(targets, 900, 500, 900, 0), []);
+    assert.equal(inView({ y: 900, height: 100 }, 500, 900), false);
+    assert.equal(inView({ y: 899, height: 100 }, 500, 900), true);
+    // Merely waiting does not change eligibility; a new scroll frontier must admit the next section.
+    assert.deepEqual(eligibleTargets([targets[2]], 900, 500, 900), []);
+    assert.equal(eligibleTargets([targets[2]], 1900, 1500, 1900).length, 1);
+});
+
+test('fast scrolling adds workers and speeds work without unbounded animation rates', () => {
+    assert.equal(scrollTempo(0), 1);
+    assert.ok(scrollTempo(2400) > scrollTempo(300));
+    assert.equal(scrollTempo(-2400), scrollTempo(2400));
+    assert.ok(scrollTempo(100000) <= 3.8);
+    assert.equal(workerCount(0, 0), 6);
+    assert.ok(workerCount(2400, 4) > workerCount(0, 4));
+    assert.equal(workerCount(100000, 100), 30);
 });
 
 test('cleanup is idempotent and survives a failing optional restore callback', () => {
@@ -150,8 +187,8 @@ test('original portfolio business logic and styling are unchanged', () => {
     const hash = filename => createHash('sha256').update(readFileSync(join(root, filename))).digest('hex');
     assert.equal(hash('script.js'), '385903ffd5efe3a602ff7f0df40e1e4b7ef28ce107ffcf010dbb18393b0210f0');
     assert.equal(hash('styles.css'), '0362b44ca5973bc3ef8ed62fb99708f5a379ccd674263a8af05340252ed38783');
-    assert.match(html, /<script src="swarm-loader\.js" defer><\/script>/);
-    assert.match(html, /<link rel="stylesheet" href="swarm-loader\.css">/);
+    assert.match(html, /<script src="swarm-loader\.js\?v=scroll-20261106" defer><\/script>/);
+    assert.match(html, /<link rel="stylesheet" href="swarm-loader\.css\?v=scroll-20261106">/);
     assert.match(html, /<script src="script\.js"><\/script>/);
 });
 

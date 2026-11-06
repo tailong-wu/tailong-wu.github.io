@@ -1,8 +1,8 @@
-/* A short collaborative-cursor entrance. All overrides expire with swarm-loading. */
+/* Scroll-driven construction. Built sections leave the mask independently. */
 :root { --swarm-loader-ready: 1; }
 
 html.swarm-loading:not(.swarm-building) body > .container { visibility: hidden; }
-html.swarm-loading .bento-card {
+html.swarm-loading .bento-card:not(.swarm-built) {
     opacity: 0 !important;
     transform: none !important;
     clip-path: inset(0 0 100% 0 round var(--radius-card));
@@ -13,11 +13,12 @@ html.swarm-loading .bento-card.swarm-card-visible {
     opacity: 1 !important;
     clip-path: inset(0 0 0 0 round var(--radius-card));
 }
-html.swarm-loading .tab-nav,
-html.swarm-loading .footer { opacity: 0; }
-html.swarm-loading.swarm-building .tab-nav {
+html.swarm-loading .tab-nav:not(.swarm-built),
+html.swarm-loading .footer:not(.swarm-built) { opacity: 0; }
+html.swarm-loading .tab-nav.swarm-card-visible,
+html.swarm-loading .footer.swarm-card-visible {
     opacity: 1;
-    transition: opacity 300ms ease;
+    transition: opacity 180ms ease;
 }
 
 #swarm-loader {
@@ -104,7 +105,30 @@ html.swarm-loading.swarm-building .tab-nav {
 }
 .swarm-skip:hover { background: var(--bg-card); }
 .swarm-skip:focus-visible { outline: 2px solid var(--swarm-blue); outline-offset: 4px; }
-#swarm-loader.is-building .swarm-skip { opacity: .65; }
+#swarm-loader.is-building .swarm-skip {
+    opacity: .8;
+    top: auto;
+    bottom: max(16px, env(safe-area-inset-bottom));
+}
+.swarm-progress {
+    display: none;
+    position: absolute;
+    left: 18px;
+    bottom: max(18px, env(safe-area-inset-bottom));
+    max-width: calc(100vw - 150px);
+    align-items: center;
+    gap: 8px;
+    padding: 8px 11px;
+    border: 1px solid color-mix(in srgb, var(--text-tertiary) 15%, transparent);
+    border-radius: 999px;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    font: 400 10px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+#swarm-loader.is-building .swarm-progress { display: flex; }
+.swarm-progress-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.swarm-progress-count { color: var(--text-tertiary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#swarm-loader.is-idle .swarm-progress { opacity: .82; }
 .swarm-surface { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .swarm-outline { fill: none; stroke: var(--swarm-blue); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .swarm-handle { fill: var(--bg-card); stroke: var(--swarm-blue); stroke-width: 1; }
@@ -137,6 +161,8 @@ html.swarm-loading.swarm-building .tab-nav {
 html.swarm-loading .swarm-typing-source {
     position: relative;
     color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+    background-image: none !important;
     text-shadow: none !important;
 }
 html.swarm-loading .swarm-typing-source > :not(.swarm-typed-copy) { visibility: hidden !important; }
@@ -155,6 +181,14 @@ html.swarm-loading .swarm-typed-copy {
     white-space: inherit;
     visibility: visible;
     pointer-events: none;
+}
+html.swarm-loading .swarm-typed-copy,
+html.swarm-loading .swarm-typed-copy * { -webkit-text-fill-color: currentColor !important; }
+html.swarm-loading .swarm-typed-copy.swarm-gradient {
+    background-image: var(--swarm-gradient) !important;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent !important;
 }
 .swarm-typed-copy.is-typing::after {
     content: '';
