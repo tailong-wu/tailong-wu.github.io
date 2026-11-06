@@ -56,6 +56,37 @@
         }
         return { x: x + r, y, angle: 0 };
     }
+    // Keep velocity across jobs: bounded spring steering, never assignment/snap-to-target.
+    function advanceCursor(state, goal, seconds, options = {}) {
+        const dt = clamp(Number.isFinite(seconds) ? seconds : 0, 0, .05);
+        const vx = state.vx ?? 0, vy = state.vy ?? 0;
+        if (!dt) return { x: state.x, y: state.y, vx, vy };
+        const response = options.response ?? 12;
+        const maxSpeed = options.maxSpeed ?? 1600, maxAcceleration = options.maxAcceleration ?? 7000;
+        let ax = (goal.x - state.x) * response * response - 2 * response * vx;
+        let ay = (goal.y - state.y) * response * response - 2 * response * vy;
+        const acceleration = Math.hypot(ax, ay);
+        if (acceleration > maxAcceleration) { ax *= maxAcceleration / acceleration; ay *= maxAcceleration / acceleration; }
+        let nextVX = vx + ax * dt, nextVY = vy + ay * dt;
+        const speed = Math.hypot(nextVX, nextVY);
+        if (speed > maxSpeed) { nextVX *= maxSpeed / speed; nextVY *= maxSpeed / speed; }
+        return { x: state.x + (vx + nextVX) * dt / 2, y: state.y + (vy + nextVY) * dt / 2,
+            vx: nextVX, vy: nextVY };
+    }
+    function turnAngle(current, target, seconds) {
+        const dt = clamp(Number.isFinite(seconds) ? seconds : 0, 0, .05);
+        const difference = ((target - current + 180) % 360 + 360) % 360 - 180;
+        return current + clamp(difference * (1 - Math.exp(-10 * dt)), -360 * dt, 360 * dt);
+    }
+    function wanderPoint(index, seconds, width, height, pointer = null) {
+        const phase = index * 2.3999632297, rate = .36 + (index % 3) * .035;
+        const angle = seconds * rate + phase;
+        const centerX = width * .5 + (pointer ? clamp(pointer.x, 0, width) - width * .5 : 0) * .22;
+        const centerY = height * .52 + (pointer ? clamp(pointer.y, 0, height) - height * .52 : 0) * .18;
+        const rx = Math.min(width * .26, 260), ry = Math.min(height * .22, 190);
+        return { x: centerX + rx * (Math.cos(angle) + .12 * Math.sin(seconds * .17 + phase * .7)),
+            y: centerY + ry * (Math.sin(angle) + .12 * Math.cos(seconds * .19 + phase * .9)) };
+    }
     const inView = (box, top, bottom) => box.y < bottom && box.y + box.height > top;
     const scrollTempo = speed => 1 + clamp(Math.abs(speed) / 1800, 0, 2.8);
     const workerCount = (speed, active) => Math.round(clamp(6 + active * 2 + Math.abs(speed) / 900, 6, 30));
@@ -67,7 +98,8 @@
 
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = { clamp, ease, lerp, perimeterPoint, splitText, typingPlan, typingCount,
-            inView, scrollTempo, workerCount, eligibleTargets, COLORS, ORBIT_MS, BUILD_MS, OUTRO_MS };
+            inView, scrollTempo, workerCount, eligibleTargets, advanceCursor, turnAngle, wanderPoint,
+            COLORS, ORBIT_MS, BUILD_MS, OUTRO_MS };
         return;
     }
 
@@ -89,7 +121,7 @@
     let width = innerWidth, height = innerHeight, cameraY = scrollY, frontier = 0, tempo = 1;
     let began = 0, previousFrame = 0, lastPaint = 0, lastScrollY = scrollY, lastScrollAt = 0, velocity = 0;
     let scrollIntent = false, pointer = null, rulerBucket = null, lastCount = '', verticalTicks;
-    let resetFrontier = false, openingTargets = [];
+    let resetFrontier = false, openingTargets = [], motionTime = 0, motionFrame = -1;
 
     const listen = (node, type, callback, options) => {
         node.addEventListener(type, callback, options);
@@ -102,7 +134,7 @@
         return node;
     };
     const snapshot = () => ({
-        phase: root.dataset.swarmState, frontier, scrollY: cameraY, viewportHeight: height, tempo,
+        phase: root.dataset.swarmState, frontier, scrollY: cameraY, viewportHeight: height, tempo, frameTime: motionFrame,
         opening: !scrollIntent && openingTargets.some(target => target.state !== 'done'),
         pending: targets.filter(target => target.state === 'pending').length,
         active: targets.filter(target => target.state === 'drawing' || target.state === 'typing').length,
@@ -217,7 +249,6 @@
             writer.copy.style.left = left; writer.copy.style.top = top; writer.copy.style.width = `${textWidth}px`;
             setGeometry(writer.frame.firstElementChild, { x: box.x - 2, y: box.y + cameraY - 2,
                 width: box.width + 4, height: box.height + 4 });
-            updateCaret(writer);
         }
     }
     function completeTarget(target) {
@@ -299,7 +330,6 @@
                 writer.range = range;
             }
         }
-        updateCaret(writer);
         if (count === writer.plan.units.length) restoreWriter(writer);
     }
     function activate(target, delay) {
@@ -351,91 +381,114 @@
     function createCursor(index, labels) {
         const node = document.createElement('div');
         node.className = 'swarm-cursor'; node.setAttribute('aria-hidden', 'true');
+        node.dataset.tool = 'arrow';
         node.style.opacity = index < 18 ? 1 : 0;
         node.innerHTML = `<svg width="26" height="26" viewBox="0 0 28 28"><path d="${ARROW}" fill="${COLORS[index % COLORS.length]}" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg><span class="swarm-cursor-label"></span>`;
         const label = node.querySelector('span'); label.style.background = COLORS[index % COLORS.length];
         label.textContent = labels[index % labels.length]; layer.append(node);
         const angle = index / 18 * Math.PI * 2, radius = width < 600 ? 87 : 105;
         return { node, icon: node.firstElementChild, index, tool: 'arrow', x: width / 2 + Math.cos(angle) * radius,
-            y: height / 2 + Math.sin(angle) * radius * .86 + cameraY, angle: 0, seed: Math.random() * 6.28 };
+            y: height / 2 - 8 + Math.sin(angle) * radius * .86,
+            vx: -Math.sin(angle) * radius * .7, vy: Math.cos(angle) * radius * .86 * .7,
+            angle: angle * 180 / Math.PI + 218, seed: Math.random() * 6.28,
+            alpha: index < 18 ? 1 : 0, phase: (index * .38196601125) % 1, job: null };
     }
     function cursorTool(cursor, tool) {
         if (cursor.tool === tool) return;
-        cursor.tool = tool;
+        cursor.tool = tool; cursor.node.dataset.tool = tool;
         const color = COLORS[cursor.index % COLORS.length];
         cursor.icon.innerHTML = tool === 'text'
-            ? `<path d="${IBEAM}" fill="none" stroke="white" stroke-width="4" stroke-linecap="round"/><path d="${IBEAM}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/>`
+            ? `<g transform="translate(-8 -10)"><path d="${IBEAM}" fill="none" stroke="white" stroke-width="4" stroke-linecap="round"/><path d="${IBEAM}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/></g>`
             : `<path d="${ARROW}" fill="${color}" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>`;
     }
-    function paintCursors(active, elapsed, dt, speed) {
+    function paintCursors(active, dt, speed) {
+        const seconds = dt / 1000;
         const opening = building && !scrollIntent && openingTargets.some(target => target.state !== 'done');
         if (opening) active = openingTargets.filter(target => target.state !== 'pending' && !target.hidden);
-        const count = !building || opening ? 18 : active.length ? Math.min(width < 600 ? 20 : 30, workerCount(speed, active.length)) : 0;
+        const count = !building || opening ? 18 : active.length ? Math.min(width < 600 ? 20 : 30, workerCount(speed, active.length)) : 6;
         cursors.forEach((cursor, index) => {
-            if (index >= count) { cursor.node.style.opacity = 0; return; }
-            let destination, angle = 0, working = false;
-            if (!building) {
-                const a = index / 18 * Math.PI * 2 + elapsed * .0007;
-                const r = (width < 600 ? 87 : 105) + Math.sin(elapsed * .0018 + cursor.seed) * 9;
-                destination = { x: width / 2 + Math.cos(a) * r, y: height / 2 - 8 + Math.sin(a) * r * .86 + cameraY };
-                angle = a * 180 / Math.PI + 218; cursorTool(cursor, 'arrow');
+            const wanted = index < count;
+            if (!wanted && cursor.alpha < .005) {
+                cursor.alpha = 0; cursor.node.style.opacity = 0; cursor.job = null; return;
+            }
+            let destination, working = false, tool = 'arrow';
+            if (wanted && building && active.length && (!cursor.job || !active.includes(cursor.job))) {
+                cursor.job = active[index % active.length];
+                cursor.phase = (index * .38196601125) % 1;
+            }
+            if (!wanted) {
+                // Retiring workers keep flying while fading; they never freeze in place.
+                cursor.job = null;
+                destination = { x: index % 2 ? width + 70 : -70,
+                    y: height * (.25 + (index % 5) * .12) + Math.sin(motionTime + cursor.seed) * 30 };
+            } else if (!building || (active.length && cursor.job && cursor.job.clock < 0)) {
+                // Workers awaiting a staggered job continue orbiting instead of parking.
+                const a = index / 18 * Math.PI * 2 + motionTime * .7;
+                const r = (width < 600 ? 87 : 105) + Math.sin(motionTime * 1.8 + cursor.seed) * 9;
+                destination = { x: width / 2 + Math.cos(a) * r, y: height / 2 - 8 + Math.sin(a) * r * .86 };
             } else if (active.length) {
-                const target = active[index % active.length];
+                const target = cursor.job;
                 const live = target.writers.filter(writer => !writer.restored && writer.point && target.clock >= writer.start);
                 const writer = live[Math.floor(index / active.length)];
                 if (writer) {
-                    cursorTool(cursor, 'text'); destination = writer.point; working = true;
+                    tool = 'text'; working = true;
+                    destination = { x: writer.point.x + Math.sin(motionTime * 2 + cursor.seed) * .6,
+                        y: writer.point.y - cameraY + Math.cos(motionTime * 1.7 + cursor.seed) * .8 };
                 } else {
-                    cursorTool(cursor, 'arrow');
-                    const p = clamp((target.clock - 160) / target.duration);
-                    const helper = index >= active.length;
+                    const trace = (target.clock - 160) / target.duration;
                     const offset = Math.floor(index / active.length) * .23;
-                    const point = perimeterPoint(target.box, opening ? (helper ? clamp(p + .33) : p)
-                        : p < 1 ? (p + offset) % 1 : (offset + elapsed * .00005) % 1);
-                    destination = point; angle = point.angle + 128; working = p < 1;
-                    if (opening && cursor.from) {
-                        const travel = ease(target.clock / 220);
-                        destination = { x: lerp(cursor.from.x, point.x, travel),
-                            y: lerp(cursor.from.y, point.y, travel) + Math.sin(travel * Math.PI) * (helper ? -25 : 25) };
-                        angle = target.clock > 200 && p < 1 ? point.angle + 128 : 0;
-                        working = !helper && target.clock > 160 && p < 1;
+                    if (target.state === 'drawing' && trace >= 0 && trace < 1) {
+                        cursor.phase = (trace + offset) % 1;
+                    } else {
+                        const r = target.box.radius;
+                        const perimeter = Math.max(100, 2 * (target.box.width + target.box.height) - 8 * r + 2 * Math.PI * r);
+                        cursor.phase = (cursor.phase + seconds * (85 + index % 4 * 17) / perimeter) % 1;
                     }
+                    const point = perimeterPoint(target.box, cursor.phase);
+                    destination = { x: point.x, y: point.y - cameraY };
+                    working = target.state !== 'done' && trace > 0 && trace < 1;
                 }
             } else {
-                cursorTool(cursor, 'arrow');
-                const center = pointer ?? { x: width - 95, y: height - 100 };
-                const a = index / 6 * Math.PI * 2 + elapsed * .0005;
-                destination = { x: center.x + Math.cos(a) * 48, y: center.y + Math.sin(a) * 32 + cameraY };
-                angle = a * 180 / Math.PI + 218;
+                cursor.job = null;
+                destination = wanderPoint(index, motionTime, width, height, pointer);
             }
-            const blend = opening || cursor.tool === 'text' ? 1 : Math.min(1, dt * .018);
-            cursor.x = lerp(cursor.x, destination.x, blend); cursor.y = lerp(cursor.y, destination.y, blend);
-            cursor.angle = angle;
-            const text = cursor.tool === 'text';
-            cursor.node.style.transform = `translate(${cursor.x - (text ? 12 : 4)}px, ${cursor.y - cameraY - (text ? 12 : 3)}px)`;
-            cursor.icon.style.transform = `rotate(${angle}deg)`;
-            cursor.icon.style.transformOrigin = text ? '12px 12px' : '4px 3px';
-            cursor.node.style.opacity = opening && index >= active.length && cursor.tool !== 'text' ? .72 : 1;
-            cursor.node.classList.toggle('is-working', working && inView({ y: cursor.y, height: 26 }, cameraY, cameraY + height));
+            cursorTool(cursor, tool);
+            // Position is in viewport space. A camera/line/job change changes only the goal,
+            // not the rendered position, velocity or shared arrow/I-beam anchor.
+            Object.assign(cursor, advanceCursor(cursor, destination, seconds,
+                { response: tool === 'text' ? 20 : 12, maxSpeed: 1250, maxAcceleration: 6500 }));
+            const heading = tool === 'text' ? 0 : Math.hypot(cursor.vx, cursor.vy) > 2
+                ? Math.atan2(cursor.vy, cursor.vx) * 180 / Math.PI + 128 : cursor.angle;
+            cursor.angle = turnAngle(cursor.angle, heading, seconds);
+            const targetAlpha = !wanted ? 0 : building && !active.length ? .65
+                : opening && index >= active.length && tool === 'arrow' ? .72 : 1;
+            cursor.alpha += (targetAlpha - cursor.alpha) * (1 - Math.exp(-11 * seconds));
+            cursor.node.style.transform = `translate3d(${(cursor.x - 4).toFixed(3)}px, ${(cursor.y - 3).toFixed(3)}px, 0)`;
+            cursor.icon.style.transform = `rotate(${cursor.angle.toFixed(3)}deg)`;
+            cursor.icon.style.transformOrigin = '4px 3px';
+            cursor.node.style.opacity = cursor.alpha.toFixed(3);
+            cursor.node.classList.toggle('is-working', working && cursor.y > -26 && cursor.y < height + 26);
         });
     }
     function tick(now) {
-        frame = 0;
-        if (ended || document.hidden) return;
+        if (ended || document.hidden) { frame = 0; return; }
+        if (now === motionFrame) { frame = requestAnimationFrame(tick); return; }
+        const motionDelta = motionFrame < 0 ? 16 : clamp(now - motionFrame, 0, 50);
+        motionFrame = now; frame = 0;
         try {
             const dt = previousFrame ? Math.min(50, now - previousFrame) : 16;
             previousFrame = now; lastPaint = now;
+            motionTime += motionDelta / 1000;
             cameraY = scrollY;
             if (geometryDirty) { measureAll(resetFrontier); geometryDirty = false; resetFrontier = false; }
             if (!building && ready && (now - began >= ORBIT_MS || scrollIntent)) {
                 building = true; measureAll();
                 openingTargets = eligibleTargets(targets, frontier, cameraY, cameraY + height, 8);
-                cursors.forEach(cursor => { cursor.from = { x: cursor.x, y: cursor.y }; });
                 root.classList.add('swarm-building'); layer.classList.add('is-building', 'is-opening');
             }
             if (!building) {
                 track.style.width = `${clamp((now - began) / ORBIT_MS) * 80}%`;
-                paintCursors([], now - began, dt, 0); frame = requestAnimationFrame(tick); return;
+                paintCursors([], motionDelta, 0); frame = requestAnimationFrame(tick); return;
             }
             frontier = Math.max(frontier, cameraY + height - Math.min(36, height * .04));
             const speed = velocity * Math.exp(-(now - lastScrollAt) / 400);
@@ -464,18 +517,22 @@
                 if (target.clock >= target.end || now - target.wallStart > 12000) completeTarget(target);
             }
             active = targets.filter(target => target.state === 'drawing' || target.state === 'typing');
+            // Batch geometry reads after every text write, avoiding one forced layout per writer.
+            active.forEach(target => target.writers.forEach(updateCaret));
             world.setAttribute('transform', `translate(0 ${-cameraY})`);
             drawRulers(active);
             const visibleActive = active.filter(target => inView(target.box, cameraY, cameraY + height));
-            paintCursors(visibleActive, now - began, dt, speed);
+            paintCursors(visibleActive, motionDelta, speed);
             const done = targets.filter(target => target.state === 'done').length;
-            root.dataset.swarmState = active.length ? 'drawing' : 'waiting';
+            const phase = active.length ? 'drawing' : 'waiting';
+            if (root.dataset.swarmState !== phase) root.dataset.swarmState = phase;
             const visibleTargets = targets.filter(target => !target.hidden);
             const visibleDone = visibleTargets.filter(target => target.state === 'done').length;
             const filteredOnly = !active.length && visibleDone === visibleTargets.length && done < targets.length;
-            hint.textContent = active.length ? (root.lang.startsWith('zh') ? '智能体正在构建' : 'Agents are building')
+            const hintLabel = active.length ? (root.lang.startsWith('zh') ? '智能体正在构建' : 'Agents are building')
                 : filteredOnly ? (root.lang.startsWith('zh') ? '切换分类，继续构建' : 'Switch tabs to keep building')
                     : (root.lang.startsWith('zh') ? '向下滚动，继续构建' : 'Scroll to keep building');
+            if (hint.textContent !== hintLabel) hint.textContent = hintLabel;
             const countLabel = `${visibleDone} / ${visibleTargets.length}`;
             if (countLabel !== lastCount) { hintCount.textContent = countLabel; lastCount = countLabel; }
             const opening = !scrollIntent && openingTargets.some(target => target.state !== 'done');
@@ -486,12 +543,11 @@
             layer.classList.toggle('is-idle', !active.length);
             if (done === targets.length && !leaving) {
                 leaving = true; layer.classList.add('is-leaving');
-                exitTimer = setTimeout(() => finish('complete'), OUTRO_MS); return;
+                exitTimer = setTimeout(() => finish('complete'), OUTRO_MS);
             }
-            // Idle scenes do not burn a continuous animation loop. Scrolling/pointer input wakes it.
-            if (active.length || eligibleTargets(targets, frontier, cameraY, cameraY + height, 1).length) {
-                frame = requestAnimationFrame(tick);
-            }
+            // Visible agents keep moving in idle and even throughout the final fade.
+            // Visibility/reduced-motion/skip handlers still stop the loop immediately.
+            frame = requestAnimationFrame(tick);
         } catch (error) {
             console.warn('Portfolio construction skipped:', error); finish('error');
         }
@@ -564,7 +620,7 @@
                 layout.observe(container); listeners.push(() => layout.disconnect());
             }
             listen(document, 'visibilitychange', () => {
-                if (document.hidden) { cancelAnimationFrame(frame); frame = 0; previousFrame = 0; }
+                if (document.hidden) { cancelAnimationFrame(frame); frame = 0; previousFrame = 0; motionFrame = -1; }
                 else {
                     lastPaint = performance.now();
                     for (const target of targets) if (target.state === 'drawing' || target.state === 'typing') target.wallStart = lastPaint;

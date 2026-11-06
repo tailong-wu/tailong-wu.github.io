@@ -138,6 +138,23 @@ test('animation helpers are bounded and end at the correct values', () => {
     assert.equal(COLORS.length, 12);
 });
 
+test('duplicate animation timestamps retain a scheduled frame instead of parking the swarm', () => {
+    const source = readFileSync(join(root, 'swarm-loader.js'), 'utf8');
+    const start = source.indexOf('    function tick(now) {');
+    const end = source.indexOf('        const motionDelta =', start);
+    assert.ok(start > 0 && end > start);
+    const prefix = source.slice(start, end) + '\n}';
+    for (const options of [{ ended: false, hidden: false }, { ended: true, hidden: false }, { ended: false, hidden: true }]) {
+        let scheduled = 0;
+        const sandbox = { ended: options.ended, document: { hidden: options.hidden }, frame: 7,
+            now: 100, motionFrame: 100, requestAnimationFrame: callback => { scheduled += 1; assert.equal(callback.name, 'tick'); return 42; } };
+        vm.runInNewContext(`(${prefix})(now)`, sandbox);
+        const active = !options.ended && !options.hidden;
+        assert.equal(scheduled, active ? 1 : 0);
+        assert.equal(sandbox.frame, active ? 42 : 0);
+    }
+});
+
 test('font and resize notifications preserve active animation clocks; only replaced text completes work', () => {
     const source = readFileSync(join(root, 'swarm-loader.js'), 'utf8');
     const start = source.indexOf('    function requestLayout(');
@@ -211,8 +228,8 @@ test('original portfolio business logic and styling are unchanged', () => {
     const hash = filename => createHash('sha256').update(readFileSync(join(root, filename))).digest('hex');
     assert.equal(hash('script.js'), '385903ffd5efe3a602ff7f0df40e1e4b7ef28ce107ffcf010dbb18393b0210f0');
     assert.equal(hash('styles.css'), '0362b44ca5973bc3ef8ed62fb99708f5a379ccd674263a8af05340252ed38783');
-    assert.match(html, /<script src="swarm-loader\.js\?v=intro-scroll-20261106-2" defer><\/script>/);
-    assert.match(html, /<link rel="stylesheet" href="swarm-loader\.css\?v=intro-scroll-20261106-2">/);
+    assert.match(html, /<script src="swarm-loader\.js\?v=smooth-20261106-3" defer><\/script>/);
+    assert.match(html, /<link rel="stylesheet" href="swarm-loader\.css\?v=smooth-20261106-3">/);
     assert.match(html, /<script src="script\.js"><\/script>/);
 });
 

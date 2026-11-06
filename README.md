@@ -35,7 +35,8 @@ Open <http://127.0.0.1:4174/>. Refresh to replay, then scroll down to construct 
 - The first screen retains the original 18-Agent orbit, fixed assignments, staggered flight, card tracing and real typing before scroll-driven work takes over. Opening progress UI stays out of the composition.
 - Resizing, initial ResizeObserver delivery and late font reflow update outlines, typed-copy geometry and caret positions **without completing or restarting active work**. Only an explicit language replacement completes the affected active text jobs.
 - Backgrounding pauses the engine. Returning does not consume the paused time as construction time.
-- Idle scenes stop their animation loop; scrolling and pointer movement wake them again.
+- Agents use velocity-preserving damped steering with bounded acceleration/speed, shortest-path rotation and a common arrow/I-beam anchor. Target, line and camera changes never directly assign rendered positions.
+- Finished strokes continue around the perimeter instead of clamping at a corner. Six idle Agents keep wandering continuously; retiring workers keep flying as they fade. Only backgrounding, reduced motion, explicit opt-out or final cleanup stops the animation loop.
 - Escape, **Show all**, or Tab accessibility navigation reveals the entire page. Space, Arrow Up/Down, Home/End and Page Up/Down remain construction-driving scroll controls.
 - Reduced motion, missing assets, initialization errors and runtime errors fail open. Back/forward navigation does not replay the effect.
 - A separate 6.5-second head watchdog protects startup only. Once the runtime takes over, it is cancelled: waiting below-fold content is not released by that timer.
@@ -56,10 +57,10 @@ Inter 300–700 and Oleo Script 400/700 use the original Google Fonts files and 
 ### Validation and deployment
 
 ```sh
-node --test tests/swarm-loader.test.cjs
+node --test tests/*.test.cjs
 node --check swarm-loader.js
 ```
 
 Tests cover frontier eligibility/priority, scroll-dependent tempo/workers, startup takeover, error cleanup, theme/history/reduced-motion handling, Unicode typing, geometry, source integrity and local fonts. Browser checks additionally verify that below-fold content stays pending beyond the old splash deadline, real scrolling starts new work, returning does not rebuild completed cards, fast scrolling catches up, and mobile/control/skip paths remain usable.
 
-This remains a static GitHub Pages site with no build step. Publish the HTML, loader files and local fonts together; retain the font licenses. The loader asset URLs carry a release query (`v=intro-scroll-20261106-2`) so returning visitors do not reuse the old timed-intro scripts from the browser cache. Bump that query when shipping a new loader release.
+This remains a static GitHub Pages site with no build step. Publish the HTML, loader files and local fonts together; retain the font licenses. The loader asset URLs carry a release query (`v=smooth-20261106-3`) so returning visitors do not reuse the old timed-intro scripts from the browser cache. Bump that query when shipping a new loader release.
