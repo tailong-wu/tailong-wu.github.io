@@ -138,6 +138,30 @@ test('animation helpers are bounded and end at the correct values', () => {
     assert.equal(COLORS.length, 12);
 });
 
+test('font and resize notifications preserve active animation clocks; only replaced text completes work', () => {
+    const source = readFileSync(join(root, 'swarm-loader.js'), 'utf8');
+    const start = source.indexOf('    function requestLayout(');
+    const end = source.indexOf('    function setGeometry(', start);
+    assert.ok(start > 0 && end > start);
+    const layout = source.slice(start, end).trim();
+    for (const reason of [undefined, 'geometry', { type: 'resize' }, [{ contentRect: {} }], 'content']) {
+        let completed = 0, wakes = 0;
+        const targets = [{ state: 'drawing', clock: 350 }, { state: 'typing', clock: 1300 }, { state: 'pending', clock: 0 }];
+        const sandbox = { ended: false, targets, reason, geometryDirty: false, resetFrontier: false,
+            completeTarget: target => { completed += 1; target.state = 'done'; }, wake: () => { wakes += 1; } };
+        vm.runInNewContext(`(${layout})(reason)`, sandbox);
+        assert.equal(completed, reason === 'content' ? 2 : 0);
+        assert.deepEqual(targets.map(target => target.clock), [350, 1300, 0]);
+        assert.equal(targets[2].state, 'pending');
+        assert.equal(sandbox.geometryDirty, true);
+        assert.equal(sandbox.resetFrontier, true);
+        assert.equal(wakes, 1);
+    }
+    for (const font of ['inter-latin.woff2', 'oleo-script-400-latin.woff2', 'oleo-script-700-latin.woff2']) {
+        assert.ok(html.includes(`href="fonts/${font}" crossorigin`));
+    }
+});
+
 test('typewriter preserves Chinese, combining marks, emoji, and original whitespace', () => {
     const text = '你好，Tailong! e\u0301 👩‍🔬 🇨🇳\n';
     const units = splitText(text);
@@ -187,8 +211,8 @@ test('original portfolio business logic and styling are unchanged', () => {
     const hash = filename => createHash('sha256').update(readFileSync(join(root, filename))).digest('hex');
     assert.equal(hash('script.js'), '385903ffd5efe3a602ff7f0df40e1e4b7ef28ce107ffcf010dbb18393b0210f0');
     assert.equal(hash('styles.css'), '0362b44ca5973bc3ef8ed62fb99708f5a379ccd674263a8af05340252ed38783');
-    assert.match(html, /<script src="swarm-loader\.js\?v=scroll-20261106" defer><\/script>/);
-    assert.match(html, /<link rel="stylesheet" href="swarm-loader\.css\?v=scroll-20261106">/);
+    assert.match(html, /<script src="swarm-loader\.js\?v=intro-scroll-20261106-2" defer><\/script>/);
+    assert.match(html, /<link rel="stylesheet" href="swarm-loader\.css\?v=intro-scroll-20261106-2">/);
     assert.match(html, /<script src="script\.js"><\/script>/);
 });
 

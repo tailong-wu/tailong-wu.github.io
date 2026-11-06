@@ -15,6 +15,7 @@ html.swarm-loading .bento-card.swarm-card-visible {
 }
 html.swarm-loading .tab-nav:not(.swarm-built),
 html.swarm-loading .footer:not(.swarm-built) { opacity: 0; }
+html.swarm-loading.swarm-building .tab-nav { opacity: 1; transition: opacity 300ms ease; }
 html.swarm-loading .tab-nav.swarm-card-visible,
 html.swarm-loading .footer.swarm-card-visible {
     opacity: 1;
@@ -129,6 +130,12 @@ html.swarm-loading .footer.swarm-card-visible {
 .swarm-progress-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .swarm-progress-count { color: var(--text-tertiary); font-variant-numeric: tabular-nums; white-space: nowrap; }
 #swarm-loader.is-idle .swarm-progress { opacity: .82; }
+#swarm-loader.is-opening .swarm-progress { display: none; }
+#swarm-loader.is-opening .swarm-skip {
+    top: max(20px, env(safe-area-inset-top));
+    bottom: auto;
+    opacity: .65;
+}
 .swarm-surface { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .swarm-outline { fill: none; stroke: var(--swarm-blue); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .swarm-handle { fill: var(--bg-card); stroke: var(--swarm-blue); stroke-width: 1; }

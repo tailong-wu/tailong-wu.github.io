@@ -6,7 +6,7 @@
         '#9747FF', '#E8467C', '#14AE5C', '#0D99FF', '#FF8A00', '#00B5CE'];
     const ARROW = 'M4.6 3.9C4.2 3.1 4.9 2.4 5.7 2.8L20.6 9.4C21.5 9.8 21.4 11.1 20.4 11.3L13.9 12.9C13.4 13 13 13.4 12.9 13.9L11.3 20.4C11.1 21.4 9.8 21.5 9.4 20.6Z';
     const IBEAM = 'M8 4H10Q12 4 12 6Q12 4 14 4H16M12 6V20M8 22H10Q12 22 12 20Q12 22 14 22H16';
-    const ORBIT_MS = 650;
+    const ORBIT_MS = 700;
     const BUILD_MS = 3300; // A single card's work budget, never a page-wide reveal timer.
     const OUTRO_MS = 240;
     const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
@@ -83,13 +83,13 @@
         '.project-info h3', '.project-info p', '.tag', '.project-bullets li', '.focus-label', '.focus-title',
         '.focus-desc', '.contact-text', '.contact-method > span', '.award-title', '.award-event', '.award-year', '.footer p'
     ].join(',');
-    let layer, surface, world, guides, rulers, hint, hintCount, track;
+    let layer, surface, world, guides, rulers, hint, hintCount, track, skipText;
     let frame = 0, fontTimer = 0, exitTimer = 0, healthTimer = 0;
     let ended = false, ready = false, building = false, leaving = false, geometryDirty = false;
     let width = innerWidth, height = innerHeight, cameraY = scrollY, frontier = 0, tempo = 1;
     let began = 0, previousFrame = 0, lastPaint = 0, lastScrollY = scrollY, lastScrollAt = 0, velocity = 0;
     let scrollIntent = false, pointer = null, rulerBucket = null, lastCount = '', verticalTicks;
-    let resetFrontier = false;
+    let resetFrontier = false, openingTargets = [];
 
     const listen = (node, type, callback, options) => {
         node.addEventListener(type, callback, options);
@@ -103,6 +103,7 @@
     };
     const snapshot = () => ({
         phase: root.dataset.swarmState, frontier, scrollY: cameraY, viewportHeight: height, tempo,
+        opening: !scrollIntent && openingTargets.some(target => target.state !== 'done'),
         pending: targets.filter(target => target.state === 'pending').length,
         active: targets.filter(target => target.state === 'drawing' || target.state === 'typing').length,
         done: targets.filter(target => target.state === 'done').length,
@@ -164,16 +165,60 @@
             target.hidden = getComputedStyle(target.node).display === 'none';
             target.box = { x: box.x, y: box.y + cameraY, width: box.width, height: box.height,
                 radius: target.nav ? Math.min(box.height / 2, 24) : parseFloat(getComputedStyle(element).borderTopLeftRadius) || 0 };
+            if (target.state === 'drawing' || target.state === 'typing') {
+                if (target.hidden) completeTarget(target);
+                else refreshTargetGeometry(target);
+            }
         }
         const edge = cameraY + height - Math.min(36, height * .04);
         frontier = reset ? edge : Math.max(frontier, edge);
         rulerBucket = null;
     }
-    function requestLayout() {
+    function requestLayout(reason = 'geometry') {
         if (ended) return;
-        // Only current work is reconciled. Unvisited sections stay unbuilt.
-        targets.filter(target => target.state === 'drawing' || target.state === 'typing').forEach(completeTarget);
+        // Font/resize notifications must never fast-forward the opening animation.
+        // A deliberate language replacement alone invalidates the original text nodes.
+        if (reason === 'content') {
+            targets.filter(target => target.state === 'drawing' || target.state === 'typing').forEach(completeTarget);
+        }
         geometryDirty = true; resetFrontier = true; wake();
+    }
+    function setGeometry(node, values) {
+        for (const [name, value] of Object.entries(values)) node?.setAttribute(name, value);
+    }
+    function updateCaret(writer) {
+        if (!writer.range || writer.restored) return;
+        const rectangles = writer.range.getClientRects();
+        const rect = rectangles[rectangles.length - 1] ?? writer.element.getBoundingClientRect();
+        writer.point = { x: writer.count > 0 ? rect.right : rect.left,
+            y: rect.top + rect.height / 2 + cameraY };
+    }
+    function refreshTargetGeometry(target) {
+        const { x, y, width: w, height: h, radius } = target.box;
+        setGeometry(target.outline, { x, y, width: w, height: h, rx: radius });
+        const corners = [[x, y], [x + w, y], [x, y + h], [x + w, y + h]];
+        target.shape.querySelectorAll('.swarm-handle').forEach((handle, index) => {
+            setGeometry(handle, { x: corners[index][0] - 3, y: corners[index][1] - 3 });
+        });
+        setGeometry(target.shape.querySelector('.swarm-measure'), { x: x + w / 2 - 32, y: y + h + 8 });
+        const label = target.shape.querySelector('.swarm-measure-text');
+        setGeometry(label, { x: x + w / 2, y: y + h + 18 });
+        if (label) label.textContent = `${Math.round(w)} × ${Math.round(h)}`;
+        for (const writer of target.writers) {
+            if (writer.restored) continue;
+            // Read original typography, not our temporary transparent-ink override.
+            writer.element.classList.remove('swarm-typing-source');
+            const computed = getComputedStyle(writer.element), box = writer.element.getBoundingClientRect();
+            const color = computed.color, left = computed.paddingLeft, top = computed.paddingTop;
+            const textWidth = Math.max(1, box.width - parseFloat(left) - parseFloat(computed.paddingRight)
+                - parseFloat(computed.borderLeftWidth) - parseFloat(computed.borderRightWidth));
+            writer.element.classList.add('swarm-typing-source');
+            writer.element.style.setProperty('--swarm-text-ink', color);
+            writer.copy.style.left = left; writer.copy.style.top = top; writer.copy.style.width = `${textWidth}px`;
+            setGeometry(writer.frame.firstElementChild, { x: box.x - 2, y: box.y + cameraY - 2,
+                width: box.width + 4, height: box.height + 4 });
+            updateCaret(writer);
+        }
     }
     function completeTarget(target) {
         if (target.state === 'done') return;
@@ -251,16 +296,15 @@
                 const range = document.createRange();
                 range.setStart(last.source, end ? end - lastLength : 0);
                 range.setEnd(last.source, end || (last.units[0]?.length ?? 0));
-                const rectangles = range.getClientRects();
-                const rect = rectangles[rectangles.length - 1] ?? writer.element.getBoundingClientRect();
-                writer.point = { x: end ? rect.right : rect.left, y: rect.top + rect.height / 2 + cameraY };
+                writer.range = range;
             }
         }
+        updateCaret(writer);
         if (count === writer.plan.units.length) restoreWriter(writer);
     }
     function activate(target, delay) {
-        target.state = 'drawing'; target.clock = -delay; target.wallStart = performance.now();
-        target.duration = target.nav ? 360 : 610;
+        target.state = 'drawing'; target.clock = -delay; target.delay = delay; target.wallStart = performance.now();
+        target.duration = target.nav ? 420 : 610;
         target.node.dataset.swarmBuild = 'drawing';
         const { x, y, width: w, height: h, radius } = target.box;
         target.group = svg('g', {});
@@ -276,11 +320,14 @@
         prepareText(target);
     }
     function drawRulers(active) {
-        const visible = active.find(target => inView(target.box, cameraY, cameraY + height));
+        const opening = !scrollIntent && openingTargets.some(target => target.state !== 'done');
+        const visible = (opening ? active.find(target => !target.nav && inView(target.box, cameraY, cameraY + height)) : null)
+            ?? active.find(target => inView(target.box, cameraY, cameraY + height));
+        const fade = opening ? 1 - clamp((Math.max(...openingTargets.map(target => target.clock + target.delay)) - 1080) / 320) : 1;
         const bucket = Math.floor(cameraY / 50);
-        rulers.setAttribute('opacity', visible ? 1 : 0);
-        guides.setAttribute('opacity', visible ? .65 : 0);
-        if (!visible) return;
+        rulers.setAttribute('opacity', visible ? fade : 0);
+        guides.setAttribute('opacity', visible ? .65 * fade : 0);
+        if (!visible || !fade) return;
         if (bucket !== rulerBucket) {
             rulerBucket = bucket; rulers.replaceChildren();
             svg('rect', { x: 0, y: 0, width, height: 16, class: 'swarm-ruler' }, rulers);
@@ -304,6 +351,7 @@
     function createCursor(index, labels) {
         const node = document.createElement('div');
         node.className = 'swarm-cursor'; node.setAttribute('aria-hidden', 'true');
+        node.style.opacity = index < 18 ? 1 : 0;
         node.innerHTML = `<svg width="26" height="26" viewBox="0 0 28 28"><path d="${ARROW}" fill="${COLORS[index % COLORS.length]}" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg><span class="swarm-cursor-label"></span>`;
         const label = node.querySelector('span'); label.style.background = COLORS[index % COLORS.length];
         label.textContent = labels[index % labels.length]; layer.append(node);
@@ -320,7 +368,9 @@
             : `<path d="${ARROW}" fill="${color}" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>`;
     }
     function paintCursors(active, elapsed, dt, speed) {
-        const count = building ? Math.min(width < 600 ? 20 : 30, workerCount(speed, active.length)) : 18;
+        const opening = building && !scrollIntent && openingTargets.some(target => target.state !== 'done');
+        if (opening) active = openingTargets.filter(target => target.state !== 'pending' && !target.hidden);
+        const count = !building || opening ? 18 : active.length ? Math.min(width < 600 ? 20 : 30, workerCount(speed, active.length)) : 0;
         cursors.forEach((cursor, index) => {
             if (index >= count) { cursor.node.style.opacity = 0; return; }
             let destination, angle = 0, working = false;
@@ -338,9 +388,18 @@
                 } else {
                     cursorTool(cursor, 'arrow');
                     const p = clamp((target.clock - 160) / target.duration);
+                    const helper = index >= active.length;
                     const offset = Math.floor(index / active.length) * .23;
-                    const point = perimeterPoint(target.box, p < 1 ? (p + offset) % 1 : (offset + elapsed * .00005) % 1);
+                    const point = perimeterPoint(target.box, opening ? (helper ? clamp(p + .33) : p)
+                        : p < 1 ? (p + offset) % 1 : (offset + elapsed * .00005) % 1);
                     destination = point; angle = point.angle + 128; working = p < 1;
+                    if (opening && cursor.from) {
+                        const travel = ease(target.clock / 220);
+                        destination = { x: lerp(cursor.from.x, point.x, travel),
+                            y: lerp(cursor.from.y, point.y, travel) + Math.sin(travel * Math.PI) * (helper ? -25 : 25) };
+                        angle = target.clock > 200 && p < 1 ? point.angle + 128 : 0;
+                        working = !helper && target.clock > 160 && p < 1;
+                    }
                 }
             } else {
                 cursorTool(cursor, 'arrow');
@@ -349,14 +408,14 @@
                 destination = { x: center.x + Math.cos(a) * 48, y: center.y + Math.sin(a) * 32 + cameraY };
                 angle = a * 180 / Math.PI + 218;
             }
-            const blend = cursor.tool === 'text' ? 1 : Math.min(1, dt * .018);
+            const blend = opening || cursor.tool === 'text' ? 1 : Math.min(1, dt * .018);
             cursor.x = lerp(cursor.x, destination.x, blend); cursor.y = lerp(cursor.y, destination.y, blend);
             cursor.angle = angle;
             const text = cursor.tool === 'text';
             cursor.node.style.transform = `translate(${cursor.x - (text ? 12 : 4)}px, ${cursor.y - cameraY - (text ? 12 : 3)}px)`;
             cursor.icon.style.transform = `rotate(${angle}deg)`;
             cursor.icon.style.transformOrigin = text ? '12px 12px' : '4px 3px';
-            cursor.node.style.opacity = !building || active.length ? 1 : .65;
+            cursor.node.style.opacity = opening && index >= active.length && cursor.tool !== 'text' ? .72 : 1;
             cursor.node.classList.toggle('is-working', working && inView({ y: cursor.y, height: 26 }, cameraY, cameraY + height));
         });
     }
@@ -370,7 +429,9 @@
             if (geometryDirty) { measureAll(resetFrontier); geometryDirty = false; resetFrontier = false; }
             if (!building && ready && (now - began >= ORBIT_MS || scrollIntent)) {
                 building = true; measureAll();
-                root.classList.add('swarm-building'); layer.classList.add('is-building');
+                openingTargets = eligibleTargets(targets, frontier, cameraY, cameraY + height, 8);
+                cursors.forEach(cursor => { cursor.from = { x: cursor.x, y: cursor.y }; });
+                root.classList.add('swarm-building'); layer.classList.add('is-building', 'is-opening');
             }
             if (!building) {
                 track.style.width = `${clamp((now - began) / ORBIT_MS) * 80}%`;
@@ -382,7 +443,11 @@
             let active = targets.filter(target => target.state === 'drawing' || target.state === 'typing');
             const capacity = Math.abs(speed) > 1000 ? 12 : 8;
             eligibleTargets(targets, frontier, cameraY, cameraY + height, capacity - active.length)
-                .forEach((target, index) => activate(target, Math.min(index * 85, 425)));
+                .forEach((target, index) => {
+                    const openingIndex = openingTargets.indexOf(target);
+                    const gap = Math.min(115, 600 / Math.max(1, openingTargets.length - 1));
+                    activate(target, openingIndex >= 0 ? openingIndex * gap : Math.min(index * 85, 425));
+                });
             active = targets.filter(target => target.state === 'drawing' || target.state === 'typing');
             for (const target of active) {
                 const visible = inView(target.box, cameraY, cameraY + height);
@@ -413,6 +478,11 @@
                     : (root.lang.startsWith('zh') ? '向下滚动，继续构建' : 'Scroll to keep building');
             const countLabel = `${visibleDone} / ${visibleTargets.length}`;
             if (countLabel !== lastCount) { hintCount.textContent = countLabel; lastCount = countLabel; }
+            const opening = !scrollIntent && openingTargets.some(target => target.state !== 'done');
+            layer.classList.toggle('is-opening', opening);
+            const skipLabel = opening ? (root.lang.startsWith('zh') ? '跳过开场' : 'Skip intro')
+                : (root.lang.startsWith('zh') ? '直接显示全部' : 'Show all');
+            if (skipText.textContent !== skipLabel) skipText.textContent = skipLabel;
             layer.classList.toggle('is-idle', !active.length);
             if (done === targets.length && !leaving) {
                 leaving = true; layer.classList.add('is-leaving');
@@ -438,15 +508,16 @@
             layer = document.createElement('div'); layer.id = 'swarm-loader';
             layer.innerHTML = `<div class="swarm-paper" aria-hidden="true"></div>
                 <div class="swarm-intro" aria-hidden="true"><div class="swarm-monogram">TW</div><div class="swarm-signature">TAILONG WU</div></div>
-                <div class="swarm-caption" role="status"><div class="swarm-status"><span class="swarm-status-label"><i class="swarm-status-dot"></i>${chinese ? '滚动，和智能体一起构建' : 'Scroll. Let the agents build.'}</span><span>18 agents</span></div><div class="swarm-track"><div class="swarm-track-fill"></div></div></div>
+                <div class="swarm-caption" role="status"><div class="swarm-status"><span class="swarm-status-label"><i class="swarm-status-dot"></i>${chinese ? '智能体集结中' : 'Gathering the swarm'}</span><span>18 agents</span></div><div class="swarm-track"><div class="swarm-track-fill"></div></div></div>
                 <svg class="swarm-surface" aria-hidden="true"></svg>
                 <div class="swarm-progress" aria-hidden="true"><i class="swarm-status-dot"></i><span class="swarm-progress-text"></span><span class="swarm-progress-count"></span></div>
-                <button type="button" class="swarm-skip" id="swarm-skip">${chinese ? '直接显示全部' : 'Show all'} <span aria-hidden="true">↗</span></button>`;
+                <button type="button" class="swarm-skip" id="swarm-skip"><span class="swarm-skip-text">${chinese ? '跳过开场' : 'Skip intro'}</span> <span aria-hidden="true">↗</span></button>`;
             document.body.append(layer);
             surface = layer.querySelector('svg');
             world = svg('g', {}, surface); guides = svg('g', { opacity: 0 }, surface); rulers = svg('g', { opacity: 0 }, surface);
             hint = layer.querySelector('.swarm-progress-text'); hintCount = layer.querySelector('.swarm-progress-count');
             track = layer.querySelector('.swarm-track-fill');
+            skipText = layer.querySelector('.swarm-skip-text');
             const nodes = [document.querySelector('.tab-nav'), ...document.querySelectorAll('.bento-card'), document.querySelector('.footer')].filter(Boolean);
             boot.restore = restoreAll;
             nodes.forEach((node, index) => {
@@ -476,7 +547,9 @@
                     if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); }
                 }
             }, true);
-            const preferences = new MutationObserver(requestLayout);
+            const preferences = new MutationObserver(records => {
+                requestLayout(records.some(record => record.attributeName === 'lang') ? 'content' : 'geometry');
+            });
             preferences.observe(root, { attributes: true, attributeFilter: ['data-theme', 'lang'] });
             listeners.push(() => preferences.disconnect());
             const categories = new MutationObserver(records => {
