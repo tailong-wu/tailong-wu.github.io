@@ -7,10 +7,43 @@
     <meta name="description" content="Personal website and portfolio of Tailong Wu - Robotics researcher focused on Vision-Language-Action (VLA) and Agents. Mathematical modeling competition award winner.">
     <meta name="keywords" content="Tailong Wu, Robotics, VLA, Vision-Language-Action, Agents, AI Researcher, Mathematical Modeling, Portfolio, GitHub">
     <meta name="author" content="Tailong Wu">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Oleo+Script:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Progressive enhancement: a failed intro must never hide the portfolio. -->
+    <script id="swarm-bootstrap">
+        (() => {
+            const root = document.documentElement;
+            try {
+                const theme = localStorage.getItem('theme');
+                if (theme === 'dark' || (!theme && matchMedia('(prefers-color-scheme: dark)').matches)) {
+                    root.setAttribute('data-theme', 'dark');
+                }
+            } catch (_) { /* Storage can be unavailable in private browsing. */ }
+            const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const navigation = performance.getEntriesByType('navigation')[0];
+            if (reduced || (navigation && navigation.type === 'back_forward')) {
+                root.dataset.swarmState = reduced ? 'reduced' : 'restored';
+                return;
+            }
+            const boot = { done: false, started: performance.now(), restore: null, timeout: 0 };
+            boot.release = (reason = 'complete') => {
+                if (boot.done) return;
+                boot.done = true;
+                clearTimeout(boot.timeout);
+                root.classList.remove('swarm-loading', 'swarm-building');
+                root.dataset.swarmState = reason;
+                try { if (boot.restore) boot.restore(); } catch (_) { /* Still reveal the page. */ }
+                document.getElementById('swarm-loader')?.remove();
+                document.querySelectorAll('.swarm-card-visible').forEach(el => el.classList.remove('swarm-card-visible'));
+                window.dispatchEvent(new Event('swarm:finished'));
+            };
+            window.__portfolioSwarm = boot;
+            boot.timeout = setTimeout(() => boot.release('timeout'), 6500);
+            root.classList.add('swarm-loading');
+        })();
+    </script>
+    <link rel="stylesheet" href="fonts/fonts.css">
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="swarm-loader.css">
+    <script src="swarm-loader.js" defer></script>
 </head>
 <body>
     <div class="container">
@@ -151,8 +184,9 @@
                         <span class="hf-label">Datasets</span>
                     </div>
                     <div class="hf-stat hf-stat-wide">
-                        <span class="hf-value">693</span>
-                        <span class="hf-label">Downloads</span>
+                        <!-- HF API snapshot 2026-11-05: 143 model + 19,646 dataset all-time downloads. -->
+                        <span class="hf-value" title="All-time downloads · Updated 2026-11-05">19,789</span>
+                        <span class="hf-label">Total downloads</span>
                     </div>
                 </div>
                 <a href="https://huggingface.co/tailong-wu" target="_blank" rel="noopener noreferrer" class="github-link">

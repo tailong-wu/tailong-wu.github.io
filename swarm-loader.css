@@ -1,0 +1,190 @@
+/* A short collaborative-cursor entrance. All overrides expire with swarm-loading. */
+:root { --swarm-loader-ready: 1; }
+
+html.swarm-loading:not(.swarm-building) body > .container { visibility: hidden; }
+html.swarm-loading .bento-card {
+    opacity: 0 !important;
+    transform: none !important;
+    clip-path: inset(0 0 100% 0 round var(--radius-card));
+    transition: opacity 180ms ease !important;
+    /* Keep the original fadeInUp running behind the mask; do not restart it. */
+}
+html.swarm-loading .bento-card.swarm-card-visible {
+    opacity: 1 !important;
+    clip-path: inset(0 0 0 0 round var(--radius-card));
+}
+html.swarm-loading .tab-nav,
+html.swarm-loading .footer { opacity: 0; }
+html.swarm-loading.swarm-building .tab-nav {
+    opacity: 1;
+    transition: opacity 300ms ease;
+}
+
+#swarm-loader {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    overflow: hidden;
+    isolation: isolate;
+    pointer-events: none;
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, sans-serif;
+    --swarm-blue: #0d99ff;
+    --swarm-red: #f24822;
+}
+.swarm-paper {
+    position: absolute;
+    inset: 0;
+    background: var(--bg-primary);
+    transition: opacity 380ms ease;
+}
+#swarm-loader.is-building .swarm-paper { opacity: 0; }
+.swarm-intro {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    display: grid;
+    justify-items: center;
+    transform: translate(-50%, -50%);
+    transition: opacity 250ms ease, transform 350ms ease;
+}
+.swarm-monogram {
+    color: var(--text-tertiary);
+    opacity: .42;
+    font: 400 64px/1 'Oleo Script', Georgia, serif;
+    letter-spacing: -.07em;
+    padding-right: 6px;
+    user-select: none;
+}
+[data-theme="dark"] .swarm-monogram { color: var(--text-secondary); opacity: .42; }
+.swarm-signature {
+    margin-top: 16px;
+    color: var(--text-tertiary);
+    font: 500 9px/1.5 'Inter', system-ui, sans-serif;
+    letter-spacing: .28em;
+    white-space: nowrap;
+}
+.swarm-caption {
+    position: absolute;
+    top: calc(50% + 145px);
+    left: 50%;
+    width: min(280px, calc(100vw - 64px));
+    transform: translateX(-50%);
+    color: var(--text-secondary);
+    transition: opacity 250ms ease;
+}
+.swarm-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    font: 400 10px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.swarm-status-label { display: inline-flex; align-items: center; gap: 7px; }
+.swarm-status-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--accent-green); }
+.swarm-track { margin-top: 11px; height: 2px; background: color-mix(in srgb, var(--text-tertiary) 13%, transparent); overflow: hidden; border-radius: 2px; }
+.swarm-track-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple), var(--accent-green)); }
+#swarm-loader.is-building .swarm-intro { opacity: 0; transform: translate(-50%, -50%) scale(.92); }
+#swarm-loader.is-building .swarm-caption { opacity: 0; }
+
+.swarm-skip {
+    position: absolute;
+    top: max(20px, env(safe-area-inset-top));
+    right: max(24px, env(safe-area-inset-right));
+    z-index: 3;
+    pointer-events: auto;
+    border: 1px solid color-mix(in srgb, var(--text-tertiary) 18%, transparent);
+    border-radius: 999px;
+    padding: 8px 12px;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    font: 400 11px/1.4 'Inter', system-ui, sans-serif;
+    cursor: pointer;
+    transition: background 150ms, opacity 200ms;
+}
+.swarm-skip:hover { background: var(--bg-card); }
+.swarm-skip:focus-visible { outline: 2px solid var(--swarm-blue); outline-offset: 4px; }
+#swarm-loader.is-building .swarm-skip { opacity: .65; }
+.swarm-surface { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.swarm-outline { fill: none; stroke: var(--swarm-blue); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.swarm-handle { fill: var(--bg-card); stroke: var(--swarm-blue); stroke-width: 1; }
+.swarm-guide { stroke: var(--swarm-red); stroke-width: 1; opacity: .48; }
+.swarm-measure { fill: var(--swarm-blue); }
+.swarm-measure-text { fill: #fff; font: 500 9px/1 ui-monospace, SFMono-Regular, Consolas, monospace; text-anchor: middle; }
+.swarm-ruler { fill: var(--text-primary); opacity: .88; }
+.swarm-ruler-tick { stroke: var(--bg-primary); stroke-width: 1; opacity: .35; }
+.swarm-ruler-number { fill: var(--bg-primary); opacity: .7; font: 8px ui-monospace, SFMono-Regular, Consolas, monospace; }
+.swarm-cursor { position: absolute; left: 0; top: 0; width: 26px; height: 26px; will-change: transform; }
+.swarm-cursor svg { display: block; overflow: visible; filter: drop-shadow(0 1px 1.4px #0004); }
+.swarm-cursor-label {
+    position: absolute;
+    left: 16px;
+    top: 21px;
+    padding: 2px 5px;
+    border-radius: 3px;
+    color: white;
+    font: 500 9px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace;
+    white-space: nowrap;
+    opacity: 0;
+    box-shadow: 0 1px 2px #0002;
+    transition: opacity 100ms;
+}
+.swarm-cursor.is-working .swarm-cursor-label { opacity: 1; }
+#swarm-loader.is-leaving { opacity: 0; transition: opacity 240ms ease; }
+
+/* Originals reserve exact rich-text layout. Only the disposable copy is typed. */
+.swarm-typed-copy { display: none; }
+html.swarm-loading .swarm-typing-source {
+    position: relative;
+    color: transparent !important;
+    text-shadow: none !important;
+}
+html.swarm-loading .swarm-typing-source > :not(.swarm-typed-copy) { visibility: hidden !important; }
+html.swarm-loading .swarm-typed-copy {
+    display: block;
+    position: absolute;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    color: var(--swarm-text-ink) !important;
+    font: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    text-align: inherit;
+    text-transform: inherit;
+    white-space: inherit;
+    visibility: visible;
+    pointer-events: none;
+}
+.swarm-typed-copy.is-typing::after {
+    content: '';
+    display: inline-block;
+    width: 1px;
+    height: 1em;
+    margin-left: 1px;
+    vertical-align: -.12em;
+    background: currentColor;
+    animation: swarm-caret-blink 650ms steps(1) infinite;
+}
+@keyframes swarm-caret-blink { 50% { opacity: 0; } }
+
+@media (max-width: 600px) {
+    .swarm-monogram { font-size: 56px; }
+    .swarm-caption { top: calc(50% + 128px); width: 240px; }
+    .swarm-skip { top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); }
+}
+@media (prefers-reduced-motion: reduce) {
+    #swarm-loader { display: none !important; }
+    html.swarm-loading body > .container { visibility: visible; }
+    .bento-card {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+        clip-path: none !important;
+    }
+    .avatar-ring, .status-dot { animation: none !important; }
+    html.swarm-loading .swarm-typing-source { color: var(--swarm-text-ink) !important; }
+    html.swarm-loading .swarm-typing-source > :not(.swarm-typed-copy) { visibility: visible !important; }
+    html.swarm-loading .swarm-typed-copy { display: none !important; }
+    html { scroll-behavior: auto; }
+}
