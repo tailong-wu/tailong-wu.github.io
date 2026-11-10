@@ -246,13 +246,13 @@ test('original portfolio business logic and styling are unchanged', () => {
     const hash = filename => createHash('sha256').update(readFileSync(join(root, filename))).digest('hex');
     assert.equal(hash('script.js'), '385903ffd5efe3a602ff7f0df40e1e4b7ef28ce107ffcf010dbb18393b0210f0');
     assert.equal(hash('styles.css'), '0362b44ca5973bc3ef8ed62fb99708f5a379ccd674263a8af05340252ed38783');
-    assert.match(html, /<script src="swarm-loader\.js\?v=copy-drag-20261110-1" defer><\/script>/);
-    assert.match(html, /<link rel="stylesheet" href="swarm-loader\.css\?v=copy-drag-20261110-1">/);
+    assert.match(html, /<script src="swarm-loader\.js\?v=copy-drag-20261110-2" defer><\/script>/);
+    assert.match(html, /<link rel="stylesheet" href="swarm-loader\.css\?v=copy-drag-20261110-2">/);
     assert.match(html, /<script src="script\.js"><\/script>/);
     const loader = readFileSync(join(root, 'swarm-loader.js'), 'utf8');
     const loaderCss = readFileSync(join(root, 'swarm-loader.css'), 'utf8');
     assert.match(loader, /function beginTransfer\(target, source/);
-    assert.match(loader, /copyFrameBox\(source\.box, target\.box/);
+    assert.match(loader, /copyFrameBox\(sourceBox, target\.box/);
     assert.match(loaderCss, /\.swarm-copy-frame/);
     assert.match(loaderCss, /\.swarm-copy-handle/);
 });

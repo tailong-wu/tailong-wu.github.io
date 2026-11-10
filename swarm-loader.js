@@ -148,7 +148,8 @@
         done: targets.filter(target => target.state === 'done').length,
         total: targets.length,
         targets: targets.map(target => ({ id: target.id, state: target.state, y: target.box.y,
-            height: target.box.height, time: Math.round(target.clock) }))
+            height: target.box.height, time: Math.round(target.clock),
+            copyPhase: target.state === 'copying' ? target.copyPhase : null }))
     });
 
     function restoreWriter(writer) {
@@ -172,7 +173,7 @@
                 restoreAccess(target);
                 target.node.classList.remove('swarm-card-visible', 'swarm-built');
                 target.node.removeAttribute('data-swarm-build');
-                target.group?.remove(); target.copyGroup?.remove();
+                target.group?.remove(); clearTransfer(target);
             }
         }
     }
@@ -204,10 +205,8 @@
             target.hidden = getComputedStyle(target.node).display === 'none';
             target.box = { x: box.x, y: box.y + cameraY, width: box.width, height: box.height,
                 radius: target.nav ? Math.min(box.height / 2, 24) : parseFloat(getComputedStyle(element).borderTopLeftRadius) || 0 };
-            if (target.state === 'drawing' || target.state === 'typing') {
-                if (target.hidden) completeTarget(target);
-                else refreshTargetGeometry(target);
-            }
+            if (target.hidden && isWorkingTarget(target)) completeTarget(target);
+            else if (target.state === 'drawing' || target.state === 'typing') refreshTargetGeometry(target);
         }
         const edge = cameraY + height - Math.min(36, height * .04);
         frontier = reset ? edge : Math.max(frontier, edge);
@@ -259,14 +258,15 @@
         }
     }
     function transferSource(target) {
-        const index = targets.indexOf(target);
-        for (let cursor = index - 1; cursor >= 0; cursor--) {
-            const candidate = targets[cursor];
-            if (!candidate.hidden && candidate.box.width > 0 && candidate.box.height > 0
-                && candidate.state !== 'pending') return candidate;
-        }
-        return targets.find(candidate => candidate !== target && !candidate.hidden
-            && candidate.box.width > 0 && candidate.box.height > 0 && candidate.state !== 'pending');
+        if (!target.node.matches('.bento-card')) return null;
+        const box = target.box;
+        return targets.filter(candidate => candidate !== target && candidate.node.matches('.bento-card')
+            && !candidate.hidden && candidate.state !== 'pending' && candidate.state !== 'copying'
+            && candidate.box.width / box.width > .55 && candidate.box.width / box.width < 1.8
+            && candidate.box.height / box.height > .55 && candidate.box.height / box.height < 1.8
+            && inView(candidate.box, cameraY - height * .35, cameraY + height))
+            .sort((a, b) => Math.hypot(a.box.x - box.x, a.box.y - box.y)
+                - Math.hypot(b.box.x - box.x, b.box.y - box.y))[0];
     }
     function transferShape(group, box, opacity = 1) {
         const shape = svg('g', { opacity }, group);
@@ -282,36 +282,104 @@
         badge.textContent = 'COPY';
         return { shape, rect, handles, badge };
     }
-    function beginTransfer(target, source, delay = 0) {
-        if (!source) return activate(target, delay);
-        target.state = 'copying'; target.copySource = source; target.copyClock = -delay;
-        target.copyDuration = 560; target.node.dataset.swarmBuild = 'copying';
-        target.copyGroup = svg('g', {}, transfers);
-        const box = copyFrameBox(source.box, target.box, 0);
-        target.copyShape = transferShape(target.copyGroup, box, 0);
-    }
-    function updateTransfer(target, delta) {
-        const progress = clamp((target.copyClock - 25) / target.copyDuration);
-        const box = copyFrameBox(target.copySource.box, target.box, progress);
-        const { shape, rect, handles, badge } = target.copyShape;
-        rect.setAttribute('x', box.x); rect.setAttribute('y', box.y); rect.setAttribute('width', box.width);
-        rect.setAttribute('height', box.height); rect.setAttribute('rx', box.radius);
+    function setTransferGeometry(view, box) {
+        setGeometry(view.rect, { x: box.x, y: box.y, width: box.width, height: box.height, rx: box.radius });
         const corners = [[box.x, box.y], [box.x + box.width, box.y],
             [box.x, box.y + box.height], [box.x + box.width, box.y + box.height]];
-        handles.querySelectorAll('.swarm-copy-handle').forEach((handle, index) => {
-            handle.setAttribute('x', corners[index][0] - 3); handle.setAttribute('y', corners[index][1] - 3);
+        view.handles.querySelectorAll('.swarm-copy-handle').forEach((handle, index) => {
+            setGeometry(handle, { x: corners[index][0] - 3, y: corners[index][1] - 3 });
         });
-        badge.setAttribute('x', box.x + box.width / 2); badge.setAttribute('y', box.y - 8);
-        shape.setAttribute('opacity', clamp((target.copyClock + 80) / 120) * (1 - clamp((progress - .86) / .14)));
-        if (progress >= 1) {
-            target.copyGroup.remove(); target.copyGroup = null; target.copyShape = null;
-            activate(target, 0);
+        setGeometry(view.badge, { x: box.x + box.width / 2, y: box.y - 8 });
+    }
+    function clearTransfer(target) {
+        if (target.carrier) target.carrier.carry = null;
+        target.carrier = null; target.copyGroup?.remove(); target.copyGroup = null;
+    }
+    function beginTransfer(target, source, delay = 0) {
+        if (!source) return activate(target, delay);
+        const carrier = cursors.slice(0, 18).filter(cursor => !cursor.carry)
+            .sort((a, b) => Math.hypot(a.x - source.box.x - source.box.width, a.y - source.box.y + cameraY)
+                - Math.hypot(b.x - source.box.x - source.box.width, b.y - source.box.y + cameraY))[0];
+        if (!carrier) return activate(target, delay);
+        target.state = 'copying'; target.copySource = source; target.copyClock = -delay;
+        target.copyDuration = 820; target.copyPhase = 'waiting'; target.copyWait = 0;
+        target.carrier = carrier; carrier.carry = target;
+        target.node.dataset.swarmBuild = 'copying';
+        target.copyGroup = svg('g', { class: 'swarm-transfer', 'data-target': target.id }, transfers);
+        target.sourceShape = transferShape(target.copyGroup, source.box, 0);
+        target.sourceShape.shape.classList.add('swarm-copy-source'); target.sourceShape.badge.textContent = '';
+        target.copyShape = transferShape(target.copyGroup, source.box, 0);
+    }
+    function updateTransfer(target, delta) {
+        const source = target.copySource;
+        target.copyWait += delta;
+        if (target.hidden || source.hidden || target.copyWait > 7000) {
+            clearTransfer(target);
+            if (target.hidden) completeTarget(target); else activate(target, 0);
+            return;
         }
+        // Copy only an already drawn frame, never an invisible pending/copying source.
+        if (target.copyPhase === 'waiting') {
+            target.copyClock = Math.min(0, target.copyClock + delta);
+            if (target.copyClock < 0 || (source.state !== 'done' && source.clock < 160 + source.duration)) return;
+            target.copyPhase = 'grabbing'; target.copyClock = 0;
+        }
+        const sourceBox = source.box;
+        const phase = target.copyPhase;
+        if (phase === 'grabbing') {
+            const goal = { x: sourceBox.x + sourceBox.width, y: sourceBox.y - cameraY };
+            target.copyGoal = goal;
+            if (Math.hypot(target.carrier.x - goal.x, target.carrier.y - goal.y) < 9) {
+                target.copyPhase = 'dragging'; target.copyClock = 0;
+            }
+        } else if (phase === 'dragging') {
+            target.copyClock += delta;
+            if (target.copyClock >= target.copyDuration) target.copyClock = target.copyDuration;
+        } else if (phase === 'snapping') {
+            const distance = Math.hypot(target.carrier.x - target.box.x - target.box.width,
+                target.carrier.y - target.box.y + cameraY);
+            if (distance > 4) {
+                // Camera/reflow changed during the snap: keep holding the frame until it arrives again.
+                target.copyPhase = 'dragging'; target.copyClock = target.copyDuration;
+            } else {
+                target.copyClock += delta;
+                if (target.copyClock >= 180) {
+                    clearTransfer(target); activate(target, 0); return;
+                }
+            }
+        }
+        const progress = phase === 'waiting' || phase === 'grabbing' ? 0
+            : phase === 'snapping' ? 1 : clamp(target.copyClock / target.copyDuration);
+        target.copyBox = copyFrameBox(sourceBox, target.box, progress);
+        target.copyGoal = { x: target.copyBox.x + target.copyBox.width, y: target.copyBox.y - cameraY };
+    }
+    function renderTransfers() {
+        targets.filter(target => target.state === 'copying' && target.copyBox).forEach(target => {
+            const sourceBox = target.copySource.box;
+            setTransferGeometry(target.sourceShape, sourceBox);
+            target.sourceShape.shape.setAttribute('opacity', target.copyPhase === 'snapping'
+                ? 1 - clamp(target.copyClock / 180) : .8);
+            let box = target.copyBox;
+            if (target.copyPhase === 'dragging') {
+                // The frame follows the rendered Agent tip, not an unrelated animation clock.
+                box = { ...box, x: target.carrier.x - box.width, y: target.carrier.y + cameraY };
+                if (target.copyClock >= target.copyDuration
+                    && Math.hypot(box.x - target.box.x, box.y - target.box.y) < 3) {
+                    target.copyPhase = 'snapping'; target.copyClock = 0;
+                    box = { ...target.box };
+                }
+            }
+            setTransferGeometry(target.copyShape, box);
+            target.copyShape.shape.setAttribute('opacity', target.copyPhase === 'grabbing' ? .35 : .95);
+            target.copyGroup.dataset.phase = target.copyPhase;
+            target.copyGroup.dataset.carrier = target.carrier.index;
+            target.copyGroup.dataset.source = target.copySource.id;
+        });
     }
     function completeTarget(target) {
         if (target.state === 'done') return;
         target.writers.forEach(restoreWriter);
-        target.group?.remove(); target.copyGroup?.remove();
+        target.group?.remove(); clearTransfer(target);
         target.state = 'done';
         target.node.dataset.swarmBuild = 'done';
         target.node.classList.remove('swarm-card-visible');
@@ -464,7 +532,7 @@
         if (opening) active = openingTargets.filter(target => target.state !== 'pending' && !target.hidden);
         const count = !building || opening ? 18 : active.length ? Math.min(width < 600 ? 20 : 30, workerCount(speed, active.length)) : 6;
         cursors.forEach((cursor, index) => {
-            const wanted = index < count;
+            const wanted = index < count || !!cursor.carry;
             if (!wanted && cursor.alpha < .005) {
                 cursor.alpha = 0; cursor.node.style.opacity = 0; cursor.job = null; return;
             }
@@ -478,17 +546,20 @@
                 cursor.job = null;
                 destination = { x: index % 2 ? width + 70 : -70,
                     y: height * (.25 + (index % 5) * .12) + Math.sin(motionTime + cursor.seed) * 30 };
+            } else if (cursor.carry?.copyGoal) {
+                destination = cursor.carry.copyGoal;
+                working = true;
             } else if (!building) {
                 const a = index / 18 * Math.PI * 2 + motionTime * .7;
                 const r = (width < 600 ? 87 : 105) + Math.sin(motionTime * 1.8 + cursor.seed) * 9;
                 destination = { x: width / 2 + Math.cos(a) * r, y: height / 2 - 8 + Math.sin(a) * r * .86 };
             } else if (active.length && cursor.job?.state === 'copying') {
                 const target = cursor.job;
-                const progress = clamp((target.copyClock - 25) / target.copyDuration);
-                const box = copyFrameBox(target.copySource.box, target.box, progress);
-                const point = perimeterPoint(box, (progress + cursor.phase) % 1);
+                const box = target.copyBox ?? target.copySource.box;
+                cursor.phase = (cursor.phase + seconds * .12) % 1;
+                const point = perimeterPoint(box, cursor.phase);
                 destination = { x: point.x, y: point.y - cameraY };
-                working = progress > 0 && progress < 1;
+                working = target.copyPhase === 'dragging';
             } else if (active.length && cursor.job && cursor.job.clock < 0) {
                 // Workers awaiting a staggered job continue orbiting instead of parking.
                 const a = index / 18 * Math.PI * 2 + motionTime * .7;
@@ -524,7 +595,7 @@
             // Position is in viewport space. A camera/line/job change changes only the goal,
             // not the rendered position, velocity or shared arrow/I-beam anchor.
             Object.assign(cursor, advanceCursor(cursor, destination, seconds,
-                { response: tool === 'text' ? 20 : 12, maxSpeed: 1250, maxAcceleration: 6500 }));
+                { response: tool === 'text' || cursor.carry ? 20 : 12, maxSpeed: 1250, maxAcceleration: 6500 }));
             const heading = tool === 'text' ? 0 : Math.hypot(cursor.vx, cursor.vy) > 2
                 ? Math.atan2(cursor.vy, cursor.vx) * 180 / Math.PI + 128 : cursor.angle;
             cursor.angle = turnAngle(cursor.angle, heading, seconds);
@@ -567,7 +638,8 @@
                 .forEach((target, index) => {
                     const openingIndex = openingTargets.indexOf(target);
                     const gap = Math.min(115, 600 / Math.max(1, openingTargets.length - 1));
-                    const source = transferSource(target);
+                    // One deliberate copy gesture at a time keeps the handoff legible.
+                    const source = targets.some(candidate => candidate.state === 'copying') ? null : transferSource(target);
                     const delay = openingIndex >= 0 ? openingIndex * gap : Math.min(index * 85, 425);
                     if (source) beginTransfer(target, source, delay);
                     else activate(target, delay);
@@ -577,8 +649,7 @@
                 const visible = inView(target.box, cameraY, cameraY + height);
                 const workDelta = dt * tempo * (visible ? 1 : 4);
                 if (target.state === 'copying') {
-                    target.copyClock += workDelta;
-                    updateTransfer(target, workDelta);
+                    updateTransfer(target, dt * (visible ? Math.min(tempo, 1.4) : 3));
                     continue;
                 }
                 target.clock += workDelta;
@@ -600,6 +671,7 @@
             drawRulers(active);
             const visibleActive = active.filter(target => inView(target.box, cameraY, cameraY + height));
             paintCursors(visibleActive, motionDelta, speed);
+            renderTransfers();
             const done = targets.filter(target => target.state === 'done').length;
             const phase = active.length ? 'drawing' : 'waiting';
             if (root.dataset.swarmState !== phase) root.dataset.swarmState = phase;

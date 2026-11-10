@@ -148,6 +148,13 @@ html.swarm-loading .footer.swarm-card-visible {
     vector-effect: non-scaling-stroke;
     filter: drop-shadow(0 3px 4px #0d99ff44);
 }
+.swarm-copy-source .swarm-copy-frame { fill: none; stroke-dasharray: none; filter: none; }
+.swarm-transfer[data-phase="snapping"] > :not(.swarm-copy-source) .swarm-copy-frame {
+    stroke-dasharray: none;
+    stroke-width: 1.8;
+    fill: var(--swarm-blue);
+    fill-opacity: .09;
+}
 .swarm-copy-handle { fill: var(--bg-card); stroke: var(--swarm-blue); stroke-width: 1; }
 .swarm-copy-label {
     fill: var(--swarm-blue);
