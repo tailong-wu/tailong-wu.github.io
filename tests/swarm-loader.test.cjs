@@ -4,7 +4,7 @@ const { readFileSync } = require('node:fs');
 const { join } = require('node:path');
 const { createHash } = require('node:crypto');
 const vm = require('node:vm');
-const { clamp, ease, lerp, perimeterPoint, splitText, typingPlan, typingCount, inView, scrollTempo, workerCount, eligibleTargets, COLORS, ORBIT_MS, BUILD_MS, OUTRO_MS } = require('../swarm-loader.js');
+const { clamp, ease, lerp, perimeterPoint, splitText, typingPlan, typingCount, inView, scrollTempo, workerCount, eligibleTargets, copyFrameBox, COLORS, ORBIT_MS, BUILD_MS, OUTRO_MS } = require('../swarm-loader.js');
 const root = join(__dirname, '..');
 const html = readFileSync(join(root, 'index.html'), 'utf8');
 const bootstrap = html.match(/<script id="swarm-bootstrap">([\s\S]*?)<\/script>/)[1];
@@ -206,6 +206,24 @@ test('typewriter pauses at punctuation without skipping final characters', () =>
     assert.equal(typingCount(typingPlan([]), 1), 0);
 });
 
+test('copy-frame interpolation lifts, scales, and lands exactly on the target frame', () => {
+    const from = { x: 20, y: 80, width: 120, height: 90, radius: 18 };
+    const to = { x: 620, y: 240, width: 360, height: 260, radius: 32 };
+    const start = copyFrameBox(from, to, 0);
+    const middle = copyFrameBox(from, to, .5);
+    const end = copyFrameBox(from, to, 1);
+    assert.deepEqual(start, from);
+    assert.deepEqual(end, to);
+    assert.ok(middle.x > from.x && middle.x < to.x);
+    assert.ok(middle.y < lerp(from.y, to.y, ease(.5)), 'copy should arc upward while dragging');
+    assert.ok(middle.width > from.width && middle.width < to.width);
+    assert.ok(middle.height > from.height && middle.height < to.height);
+    for (const progress of [-1, 0, .25, .5, .75, 1, 2]) {
+        const box = copyFrameBox(from, to, progress);
+        for (const value of Object.values(box)) assert.ok(Number.isFinite(value));
+    }
+});
+
 test('rounded-card tracing stays on every perimeter, including degenerate rectangles', () => {
     for (const box of [
         { x: 24, y: 100, width: 520, height: 390, radius: 32 },
@@ -228,9 +246,15 @@ test('original portfolio business logic and styling are unchanged', () => {
     const hash = filename => createHash('sha256').update(readFileSync(join(root, filename))).digest('hex');
     assert.equal(hash('script.js'), '385903ffd5efe3a602ff7f0df40e1e4b7ef28ce107ffcf010dbb18393b0210f0');
     assert.equal(hash('styles.css'), '0362b44ca5973bc3ef8ed62fb99708f5a379ccd674263a8af05340252ed38783');
-    assert.match(html, /<script src="swarm-loader\.js\?v=smooth-20261106-3" defer><\/script>/);
-    assert.match(html, /<link rel="stylesheet" href="swarm-loader\.css\?v=smooth-20261106-3">/);
+    assert.match(html, /<script src="swarm-loader\.js\?v=copy-drag-20261110-1" defer><\/script>/);
+    assert.match(html, /<link rel="stylesheet" href="swarm-loader\.css\?v=copy-drag-20261110-1">/);
     assert.match(html, /<script src="script\.js"><\/script>/);
+    const loader = readFileSync(join(root, 'swarm-loader.js'), 'utf8');
+    const loaderCss = readFileSync(join(root, 'swarm-loader.css'), 'utf8');
+    assert.match(loader, /function beginTransfer\(target, source/);
+    assert.match(loader, /copyFrameBox\(source\.box, target\.box/);
+    assert.match(loaderCss, /\.swarm-copy-frame/);
+    assert.match(loaderCss, /\.swarm-copy-handle/);
 });
 
 test('all original font faces are available locally with their licenses', () => {

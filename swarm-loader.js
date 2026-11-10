@@ -95,11 +95,18 @@
             .sort((a, b) => Number(inView(b.box, top, bottom)) - Number(inView(a.box, top, bottom))
                 || Math.abs(a.box.y - top) - Math.abs(b.box.y - top)).slice(0, Math.max(0, limit));
     }
+    const isWorkingTarget = target => target.state === 'copying' || target.state === 'drawing' || target.state === 'typing';
+    function copyFrameBox(from, to, progress, lift = 42) {
+        const p = ease(progress), arc = p <= 0 || p >= 1 ? 0 : Math.sin(Math.PI * p) * lift;
+        return { x: lerp(from.x, to.x, p), y: lerp(from.y, to.y, p) - arc,
+            width: lerp(from.width, to.width, p), height: lerp(from.height, to.height, p),
+            radius: lerp(from.radius ?? 0, to.radius ?? 0, p) };
+    }
 
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = { clamp, ease, lerp, perimeterPoint, splitText, typingPlan, typingCount,
             inView, scrollTempo, workerCount, eligibleTargets, advanceCursor, turnAngle, wanderPoint,
-            COLORS, ORBIT_MS, BUILD_MS, OUTRO_MS };
+            copyFrameBox, COLORS, ORBIT_MS, BUILD_MS, OUTRO_MS };
         return;
     }
 
@@ -115,7 +122,7 @@
         '.project-info h3', '.project-info p', '.tag', '.project-bullets li', '.focus-label', '.focus-title',
         '.focus-desc', '.contact-text', '.contact-method > span', '.award-title', '.award-event', '.award-year', '.footer p'
     ].join(',');
-    let layer, surface, world, guides, rulers, hint, hintCount, track, skipText;
+    let layer, surface, world, transfers, guides, rulers, hint, hintCount, track, skipText;
     let frame = 0, fontTimer = 0, exitTimer = 0, healthTimer = 0;
     let ended = false, ready = false, building = false, leaving = false, geometryDirty = false;
     let width = innerWidth, height = innerHeight, cameraY = scrollY, frontier = 0, tempo = 1;
@@ -137,7 +144,7 @@
         phase: root.dataset.swarmState, frontier, scrollY: cameraY, viewportHeight: height, tempo, frameTime: motionFrame,
         opening: !scrollIntent && openingTargets.some(target => target.state !== 'done'),
         pending: targets.filter(target => target.state === 'pending').length,
-        active: targets.filter(target => target.state === 'drawing' || target.state === 'typing').length,
+        active: targets.filter(isWorkingTarget).length,
         done: targets.filter(target => target.state === 'done').length,
         total: targets.length,
         targets: targets.map(target => ({ id: target.id, state: target.state, y: target.box.y,
@@ -165,7 +172,7 @@
                 restoreAccess(target);
                 target.node.classList.remove('swarm-card-visible', 'swarm-built');
                 target.node.removeAttribute('data-swarm-build');
-                target.group?.remove();
+                target.group?.remove(); target.copyGroup?.remove();
             }
         }
     }
@@ -251,10 +258,60 @@
                 width: box.width + 4, height: box.height + 4 });
         }
     }
+    function transferSource(target) {
+        const index = targets.indexOf(target);
+        for (let cursor = index - 1; cursor >= 0; cursor--) {
+            const candidate = targets[cursor];
+            if (!candidate.hidden && candidate.box.width > 0 && candidate.box.height > 0
+                && candidate.state !== 'pending') return candidate;
+        }
+        return targets.find(candidate => candidate !== target && !candidate.hidden
+            && candidate.box.width > 0 && candidate.box.height > 0 && candidate.state !== 'pending');
+    }
+    function transferShape(group, box, opacity = 1) {
+        const shape = svg('g', { opacity }, group);
+        const rect = svg('rect', { x: box.x, y: box.y, width: box.width, height: box.height,
+            rx: box.radius, class: 'swarm-copy-frame' }, shape);
+        const handles = svg('g', { class: 'swarm-copy-handles' }, shape);
+        for (const [hx, hy] of [[box.x, box.y], [box.x + box.width, box.y],
+            [box.x, box.y + box.height], [box.x + box.width, box.y + box.height]]) {
+            svg('rect', { x: hx - 3, y: hy - 3, width: 6, height: 6, class: 'swarm-copy-handle' }, handles);
+        }
+        const badge = svg('text', { x: box.x + box.width / 2, y: box.y - 8,
+            class: 'swarm-copy-label' }, shape);
+        badge.textContent = 'COPY';
+        return { shape, rect, handles, badge };
+    }
+    function beginTransfer(target, source, delay = 0) {
+        if (!source) return activate(target, delay);
+        target.state = 'copying'; target.copySource = source; target.copyClock = -delay;
+        target.copyDuration = 560; target.node.dataset.swarmBuild = 'copying';
+        target.copyGroup = svg('g', {}, transfers);
+        const box = copyFrameBox(source.box, target.box, 0);
+        target.copyShape = transferShape(target.copyGroup, box, 0);
+    }
+    function updateTransfer(target, delta) {
+        const progress = clamp((target.copyClock - 25) / target.copyDuration);
+        const box = copyFrameBox(target.copySource.box, target.box, progress);
+        const { shape, rect, handles, badge } = target.copyShape;
+        rect.setAttribute('x', box.x); rect.setAttribute('y', box.y); rect.setAttribute('width', box.width);
+        rect.setAttribute('height', box.height); rect.setAttribute('rx', box.radius);
+        const corners = [[box.x, box.y], [box.x + box.width, box.y],
+            [box.x, box.y + box.height], [box.x + box.width, box.y + box.height]];
+        handles.querySelectorAll('.swarm-copy-handle').forEach((handle, index) => {
+            handle.setAttribute('x', corners[index][0] - 3); handle.setAttribute('y', corners[index][1] - 3);
+        });
+        badge.setAttribute('x', box.x + box.width / 2); badge.setAttribute('y', box.y - 8);
+        shape.setAttribute('opacity', clamp((target.copyClock + 80) / 120) * (1 - clamp((progress - .86) / .14)));
+        if (progress >= 1) {
+            target.copyGroup.remove(); target.copyGroup = null; target.copyShape = null;
+            activate(target, 0);
+        }
+    }
     function completeTarget(target) {
         if (target.state === 'done') return;
         target.writers.forEach(restoreWriter);
-        target.group?.remove();
+        target.group?.remove(); target.copyGroup?.remove();
         target.state = 'done';
         target.node.dataset.swarmBuild = 'done';
         target.node.classList.remove('swarm-card-visible');
@@ -421,7 +478,18 @@
                 cursor.job = null;
                 destination = { x: index % 2 ? width + 70 : -70,
                     y: height * (.25 + (index % 5) * .12) + Math.sin(motionTime + cursor.seed) * 30 };
-            } else if (!building || (active.length && cursor.job && cursor.job.clock < 0)) {
+            } else if (!building) {
+                const a = index / 18 * Math.PI * 2 + motionTime * .7;
+                const r = (width < 600 ? 87 : 105) + Math.sin(motionTime * 1.8 + cursor.seed) * 9;
+                destination = { x: width / 2 + Math.cos(a) * r, y: height / 2 - 8 + Math.sin(a) * r * .86 };
+            } else if (active.length && cursor.job?.state === 'copying') {
+                const target = cursor.job;
+                const progress = clamp((target.copyClock - 25) / target.copyDuration);
+                const box = copyFrameBox(target.copySource.box, target.box, progress);
+                const point = perimeterPoint(box, (progress + cursor.phase) % 1);
+                destination = { x: point.x, y: point.y - cameraY };
+                working = progress > 0 && progress < 1;
+            } else if (active.length && cursor.job && cursor.job.clock < 0) {
                 // Workers awaiting a staggered job continue orbiting instead of parking.
                 const a = index / 18 * Math.PI * 2 + motionTime * .7;
                 const r = (width < 600 ? 87 : 105) + Math.sin(motionTime * 1.8 + cursor.seed) * 9;
@@ -493,18 +561,27 @@
             frontier = Math.max(frontier, cameraY + height - Math.min(36, height * .04));
             const speed = velocity * Math.exp(-(now - lastScrollAt) / 400);
             tempo = scrollTempo(speed);
-            let active = targets.filter(target => target.state === 'drawing' || target.state === 'typing');
+            let active = targets.filter(isWorkingTarget);
             const capacity = Math.abs(speed) > 1000 ? 12 : 8;
             eligibleTargets(targets, frontier, cameraY, cameraY + height, capacity - active.length)
                 .forEach((target, index) => {
                     const openingIndex = openingTargets.indexOf(target);
                     const gap = Math.min(115, 600 / Math.max(1, openingTargets.length - 1));
-                    activate(target, openingIndex >= 0 ? openingIndex * gap : Math.min(index * 85, 425));
+                    const source = transferSource(target);
+                    const delay = openingIndex >= 0 ? openingIndex * gap : Math.min(index * 85, 425);
+                    if (source) beginTransfer(target, source, delay);
+                    else activate(target, delay);
                 });
-            active = targets.filter(target => target.state === 'drawing' || target.state === 'typing');
+            active = targets.filter(isWorkingTarget);
             for (const target of active) {
                 const visible = inView(target.box, cameraY, cameraY + height);
-                target.clock += dt * tempo * (visible ? 1 : 4);
+                const workDelta = dt * tempo * (visible ? 1 : 4);
+                if (target.state === 'copying') {
+                    target.copyClock += workDelta;
+                    updateTransfer(target, workDelta);
+                    continue;
+                }
+                target.clock += workDelta;
                 target.group.setAttribute('opacity', visible ? 1 : 0);
                 const progress = clamp((target.clock - 160) / target.duration);
                 target.outline.setAttribute('stroke-dashoffset', 1 - progress);
@@ -516,7 +593,7 @@
                 target.writers.forEach(writer => updateWriter(writer, target.clock));
                 if (target.clock >= target.end || now - target.wallStart > 12000) completeTarget(target);
             }
-            active = targets.filter(target => target.state === 'drawing' || target.state === 'typing');
+            active = targets.filter(isWorkingTarget);
             // Batch geometry reads after every text write, avoiding one forced layout per writer.
             active.forEach(target => target.writers.forEach(updateCaret));
             world.setAttribute('transform', `translate(0 ${-cameraY})`);
@@ -570,7 +647,8 @@
                 <button type="button" class="swarm-skip" id="swarm-skip"><span class="swarm-skip-text">${chinese ? '跳过开场' : 'Skip intro'}</span> <span aria-hidden="true">↗</span></button>`;
             document.body.append(layer);
             surface = layer.querySelector('svg');
-            world = svg('g', {}, surface); guides = svg('g', { opacity: 0 }, surface); rulers = svg('g', { opacity: 0 }, surface);
+            world = svg('g', {}, surface); transfers = svg('g', {}, world);
+            guides = svg('g', { opacity: 0 }, surface); rulers = svg('g', { opacity: 0 }, surface);
             hint = layer.querySelector('.swarm-progress-text'); hintCount = layer.querySelector('.swarm-progress-count');
             track = layer.querySelector('.swarm-track-fill');
             skipText = layer.querySelector('.swarm-skip-text');

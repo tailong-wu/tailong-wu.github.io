@@ -8,10 +8,11 @@ This is **not a timed splash screen**. Each section is constructed when scrollin
 
 1. Colored Agent cursors gather around the **TW** monogram.
 2. Agents draw the cards currently in view, showing rulers, guides, selection handles and dimensions.
-3. Cards fill in; Agents switch to I-beams and type headings, labels and rich text character by character.
-4. Unvisited sections stay pending, even after the first screen has finished. Scrolling brings more work into the construction frontier.
-5. Faster scrolling increases work tempo and worker count. Work above the viewport catches up quickly. Returning to an already completed card never rebuilds it.
-6. After every section, including the footer, has been built, the animation removes itself.
+3. A finished selection frame can be duplicated: its dashed, semi-transparent copy arcs smoothly to the next card, resizes into place, snaps to the edge and hands the job to the next Agents.
+4. Cards fill in; Agents switch to I-beams and type headings, labels and rich text character by character.
+5. Unvisited sections stay pending, even after the first screen has finished. Scrolling brings more work into the construction frontier.
+6. Faster scrolling increases work tempo and worker count. Work above the viewport catches up quickly. Returning to an already completed card never rebuilds it.
+7. After every section, including the footer, has been built, the animation removes itself.
 
 Between sections, a small “Scroll to keep building” indicator remains. **Show all** reveals everything immediately.
 
@@ -36,6 +37,7 @@ Open <http://127.0.0.1:4174/>. Refresh to replay, then scroll down to construct 
 - Resizing, initial ResizeObserver delivery and late font reflow update outlines, typed-copy geometry and caret positions **without completing or restarting active work**. Only an explicit language replacement completes the affected active text jobs.
 - Backgrounding pauses the engine. Returning does not consume the paused time as construction time.
 - Agents use velocity-preserving damped steering with bounded acceleration/speed, shortest-path rotation and a common arrow/I-beam anchor. Target, line and camera changes never directly assign rendered positions.
+- Copy transfers use a dashed semi-transparent frame with corner handles, a lifted arc, smooth resizing and a final edge snap; the original frame remains visible until the duplicate lands.
 - Finished strokes continue around the perimeter instead of clamping at a corner. Six idle Agents keep wandering continuously; retiring workers keep flying as they fade. Only backgrounding, reduced motion, explicit opt-out or final cleanup stops the animation loop.
 - Escape, **Show all**, or Tab accessibility navigation reveals the entire page. Space, Arrow Up/Down, Home/End and Page Up/Down remain construction-driving scroll controls.
 - Reduced motion, missing assets, initialization errors and runtime errors fail open. Back/forward navigation does not replay the effect.
@@ -48,7 +50,8 @@ Open <http://127.0.0.1:4174/>. Refresh to replay, then scroll down to construct 
 - [Scheduler, scroll frontier, Agent rendering and typing](swarm-loader.js)
 - [Scoped construction styling](swarm-loader.css)
 - [Local font CSS](fonts/fonts.css) and [font provenance](fonts/sources.json)
-- [Regression tests](tests/swarm-loader.test.cjs)
+- [Construction regression tests](tests/swarm-loader.test.cjs)
+- [Cursor motion regression tests](tests/cursor-motion.test.cjs)
 
 While construction is active, `window.portfolioSwarm.snapshot()` reports the frontier, tempo, pending/active/completed counts and per-section clocks. `window.portfolioSwarm.showAll()` is the same explicit opt-out as the on-screen button.
 
@@ -63,4 +66,4 @@ node --check swarm-loader.js
 
 Tests cover frontier eligibility/priority, scroll-dependent tempo/workers, startup takeover, error cleanup, theme/history/reduced-motion handling, Unicode typing, geometry, source integrity and local fonts. Browser checks additionally verify that below-fold content stays pending beyond the old splash deadline, real scrolling starts new work, returning does not rebuild completed cards, fast scrolling catches up, and mobile/control/skip paths remain usable.
 
-This remains a static GitHub Pages site with no build step. Publish the HTML, loader files and local fonts together; retain the font licenses. The loader asset URLs carry a release query (`v=smooth-20261106-3`) so returning visitors do not reuse the old timed-intro scripts from the browser cache. Bump that query when shipping a new loader release.
+This remains a static GitHub Pages site with no build step. Publish the HTML, loader files and local fonts together; retain the font licenses. The loader asset URLs carry a release query (`v=copy-drag-20261110-1`) so returning visitors do not reuse the old timed-intro scripts from the browser cache. Bump that query when shipping a new loader release.
